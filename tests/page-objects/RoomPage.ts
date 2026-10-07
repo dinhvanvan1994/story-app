@@ -30,7 +30,6 @@ export class RoomPage {
   readonly revealVotesButton: Locator;
   readonly revealError: Locator;
   readonly nextStoryButton: Locator;
-  readonly participantVoteStatuses: Locator;
 
   constructor(private readonly page: Page) {
     this.hostDisplayName = page.getByTestId("host-display-name");
@@ -61,7 +60,6 @@ export class RoomPage {
     this.revealVotesButton = page.getByTestId("reveal-votes");
     this.revealError = page.getByTestId("reveal-error");
     this.nextStoryButton = page.getByTestId("next-story");
-    this.participantVoteStatuses = page.getByTestId("participant-vote-status");
   }
 
   async goto(path: string): Promise<void> {
@@ -132,6 +130,8 @@ export class RoomPage {
   }
 
   participantVoteStatus(name: string): Locator {
-    return this.participantVoteStatuses.filter({ hasText: name });
+    return this.participantItems
+      .filter({ hasText: name })
+      .getByTestId("participant-vote-status");
   }
 }
