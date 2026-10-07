@@ -22,7 +22,9 @@ function isParticipant(value: unknown): value is Participant {
   return (
     isRecord(value) &&
     typeof value.id === "string" &&
+    value.id.length > 0 &&
     typeof value.displayName === "string" &&
+    value.displayName.length > 0 &&
     isParticipantRole(value.role)
   );
 }
@@ -31,8 +33,11 @@ function isParticipantSession(value: unknown): value is ParticipantSession {
   return (
     isRecord(value) &&
     typeof value.participantId === "string" &&
+    value.participantId.length > 0 &&
     typeof value.displayName === "string" &&
+    value.displayName.length > 0 &&
     typeof value.roomCode === "string" &&
+    value.roomCode.length > 0 &&
     isParticipantRole(value.role)
   );
 }
@@ -41,11 +46,14 @@ function isRoom(value: unknown): value is Room {
   return (
     isRecord(value) &&
     typeof value.code === "string" &&
+    value.code.length > 0 &&
     typeof value.hostParticipantId === "string" &&
+    value.hostParticipantId.length > 0 &&
     Array.isArray(value.participants) &&
     value.participants.every(isParticipant) &&
     typeof value.revision === "number" &&
-    Number.isFinite(value.revision)
+    Number.isInteger(value.revision) &&
+    value.revision >= 1
   );
 }
 

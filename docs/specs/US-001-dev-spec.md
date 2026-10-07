@@ -168,16 +168,20 @@ Ordered by dependency. Owner says which agent writes the file.
 | 5 | `src/domain/roomCode.test.ts` | Developer | Unit tests for code generation format, normalization, and local validation. | AC-1, AC-4, AC-7–AC-8, AC-17–AC-18 |
 | 6 | `src/domain/roomReducer.ts` | Developer | Purely create room state, apply join intents, enforce duplicate identity and name rules, derive `PublicView`, and decide with `shouldApplyView` whether a received view is newer. | AC-1–AC-3, AC-5–AC-6, AC-14–AC-16 |
 | 7 | `src/domain/roomReducer.test.ts` | Developer | Unit tests for room creation, join and rejoin, duplicate rejection, public view, revision counting, and `shouldApplyView`. | AC-1–AC-3, AC-5–AC-6, AC-14–AC-16 |
-| 8 | `src/storage/roomSession.ts` | Developer | Read and write the host room snapshot and per-tab participant identity using `sessionStorage`. | AC-15–AC-16 |
-| 9 | `src/lib/supabaseClient.ts` | Developer | Create the single Supabase client from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. | AC-2–AC-4, AC-7, AC-15–AC-16 |
-| 10 | `src/realtime/roomChannel.ts` | Developer | Exchange the named Broadcast messages on one channel per room, per D-003, using the shared client; report when the channel is `SUBSCRIBED`. | AC-1–AC-4, AC-7, AC-15–AC-16, AC-19 |
-| 11 | `src/features/room/useRoomSession.ts` | Developer | Coordinate create and join flows, per-tab restore, correlated replies, the 5-second join timeout, the 10-second host connection timeout, and applying views by revision. | AC-1–AC-8, AC-15–AC-19 |
-| 12 | `src/features/room/CreateRoomForm.tsx` | Developer | Collect the host display name, show the connecting state, and show the create error. | AC-1, AC-5, AC-19 |
-| 13 | `src/features/room/JoinRoomForm.tsx` | Developer | Collect a guest display name and room code, including share-link prefill. | AC-2, AC-4–AC-14, AC-17–AC-18 |
-| 14 | `src/features/room/RoomView.tsx` | Developer | Show the room code, share link, and live participant list. | AC-1–AC-3, AC-7, AC-15–AC-16 |
-| 15 | `src/App.tsx` | Developer | Compose the home screen (create and join forms side by side) and the room view. | AC-1–AC-19 |
-| 16 | `tests/page-objects/RoomPage.ts` | Test agent | Page-object interactions using the binding test IDs below. | AC-1–AC-19 |
-| 17 | `tests/e2e/US-001-create-and-join-room.spec.ts` | Test agent | Cross-browser room creation, joining, refresh, validation, and synchronization. | AC-1–AC-19 |
+| 8 | `src/domain/messageGuards.ts` | Developer | Validate incoming room Broadcast payloads before they reach handlers. | AC-2–AC-3 |
+| 9 | `src/domain/messageGuards.test.ts` | Developer | Unit tests for valid and malformed room Broadcast payloads. | AC-2–AC-3 |
+| 10 | `src/storage/roomSession.ts` | Developer | Read and write the host room snapshot and per-tab participant identity using `sessionStorage`. | AC-15–AC-16 |
+| 11 | `src/storage/roomSession.test.ts` | Developer | Unit tests for storage reads, shape validation, round trips, and clearing session keys. | AC-15–AC-16 |
+| 12 | `src/vite-env.d.ts` | Developer | Declare Vite environment variables used to configure Supabase. | AC-2–AC-4, AC-7, AC-15–AC-16 |
+| 13 | `src/lib/supabaseClient.ts` | Developer | Create the single Supabase client from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. | AC-2–AC-4, AC-7, AC-15–AC-16 |
+| 14 | `src/realtime/roomChannel.ts` | Developer | Exchange the named Broadcast messages on one channel per room, per D-003, validate received payloads, and report when the channel is `SUBSCRIBED`. | AC-1–AC-4, AC-7, AC-15–AC-16, AC-19 |
+| 15 | `src/features/room/useRoomSession.ts` | Developer | Coordinate create and join flows, per-tab restore, correlated replies, the 5-second join timeout, the 10-second host connection timeout, and applying views by revision. | AC-1–AC-8, AC-15–AC-19 |
+| 16 | `src/features/room/CreateRoomForm.tsx` | Developer | Collect the host display name, show the connecting state, and show the create error. | AC-1, AC-5, AC-19 |
+| 17 | `src/features/room/JoinRoomForm.tsx` | Developer | Collect a guest display name and room code, including share-link prefill. | AC-2, AC-4–AC-14, AC-17–AC-18 |
+| 18 | `src/features/room/RoomView.tsx` | Developer | Show the room code, share link, and live participant list. | AC-1–AC-3, AC-7, AC-15–AC-16 |
+| 19 | `src/App.tsx` | Developer | Compose the home screen (create and join forms side by side) and the room view. | AC-1–AC-19 |
+| 20 | `tests/page-objects/RoomPage.ts` | Test agent | Page-object interactions using the binding test IDs below. | AC-1–AC-19 |
+| 21 | `tests/e2e/US-001-create-and-join-room.spec.ts` | Test agent | Cross-browser room creation, joining, refresh, validation, and synchronization. | AC-1–AC-19 |
 
 Keep validation and state transitions in the plain functions under `src/domain/`; components and session orchestration call those functions rather than duplicating business rules.
 
@@ -234,6 +238,8 @@ These names are binding for page objects and tests. The home screen shows the cr
 | `normalizeRoomCode` / `validateRoomCode` / `createShareLink` | Lowercase becomes uppercase; six valid characters accepted; empty, short, and long values rejected with “Enter a 6-character room code.”; six characters with an invalid character (`A7K9Q!`) rejected with “Room code can only contain letters and digits.”; share link contains the code as `?room=CODE`. | AC-4, AC-7–AC-8, AC-17–AC-18 |
 | `createRoom` / `applyJoinIntent` / `createPublicView` | Host creation with `revision` 1; guest addition adds 1 to `revision`; duplicate rejection leaves the room (and `revision`) unchanged; same-ID rejoin without duplicate and without a `revision` change; same-ID rejoin with a different submitted name keeps the stored name; public view contains participant list and `revision`, and no vote fields. | AC-1–AC-3, AC-5–AC-6, AC-14–AC-16 |
 | `shouldApplyView` | `null` current view accepts any view; revision 3 over 2 accepted; revision 2 over 3 rejected; same revision rejected. | AC-3 |
+| `isRoomIntentPayload` / `isRoomStatePayload` / `isRoomRejectedPayload` | Valid payloads pass; missing or empty required strings, invalid field types, invalid participant shapes, non-integer or sub-1 revisions, invalid intent type, and unknown rejection codes fail. | AC-2–AC-3 |
+| `readParticipantSession` / `readHostRoom` / write and clear helpers | Missing keys, invalid JSON, and wrong shapes return `null`; valid values round-trip; clearing removes both storage keys. | AC-15–AC-16 |
 
 Use test names that include `US-001` and the matching test-case IDs once the Test agent creates `docs/test-cases/US-001-test-cases.md`.
 

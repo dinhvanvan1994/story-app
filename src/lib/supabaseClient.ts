@@ -1,16 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 
-declare global {
-  interface ImportMetaEnv {
-    readonly VITE_SUPABASE_URL: string;
-    readonly VITE_SUPABASE_ANON_KEY: string;
-  }
-
-  interface ImportMeta {
-    readonly env: ImportMetaEnv;
-  }
-}
-
 const { VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY } = import.meta.env;
 const missingVariables = [
   ["VITE_SUPABASE_URL", VITE_SUPABASE_URL],

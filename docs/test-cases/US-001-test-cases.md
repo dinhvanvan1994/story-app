@@ -66,14 +66,16 @@
 | TC-001-44 | Stale or repeated views are ignored | AC-3 | Unit | P1 | Public views of one room with different `revision` values. | 1. `shouldApplyView(null, view@1)`.<br>2. `shouldApplyView(view@2, view@3)`.<br>3. `shouldApplyView(view@3, view@2)`.<br>4. `shouldApplyView(view@3, view@3)`. | revisions 1, 2, 3 | Results: `true`, `true`, `false`, `false`. |
 | TC-001-45 | Host cannot connect shows an error after 10 seconds | AC-19 | E2E | P2 | Browser A's context blocks the Supabase Realtime websocket (as in TC-001-16); the home screen is open. | 1. Fill `host-display-name` with “Maya Chen”; click `create-room`; record t0.<br>2. At t0 + 9,000 ms check `create-error` and `room-view`.<br>3. By t0 + 13,000 ms check `create-error`, `room-view`, and the keys in `sessionStorage`. | “Maya Chen”; timeout 10,000 ms | At 9 seconds there is no error and no `room-view` (still connecting). By 13 seconds `create-error` shows exactly “Could not connect to the realtime service. Try again.”; `room-view` is absent; neither `story-app:host-room` nor `story-app:participant` exists. |
 | TC-001-46 | Guest can join immediately after the host's room appears | AC-1, AC-2 | E2E | P1 | Browsers A and B are on the home screen; B has “Noah Patel” typed in `guest-display-name`. | 1. In A create a room as “Maya Chen”; wait for `room-view` (up to 10,000 ms).<br>2. As soon as `room-code-value` is readable, fill B's `room-code` with it and click `join-room` with no extra waiting.<br>3. Check B's `join-error` and both lists. | “Maya Chen”; “Noah Patel” | B joins on the first attempt with no timeout error; both lists contain “Maya Chen” and “Noah Patel”. (Story A-13.) |
+| TC-001-47 | Malformed message payloads are ignored | AC-2, AC-3 | Unit | P1 | None. | 1. Check valid intent, state, and rejection payloads.<br>2. Check malformed payloads including missing `intent`, non-string `displayName`, `revision` 0 and 1.5, and an unknown rejection code. | Valid payloads; missing intent; numeric `displayName`; revisions 0 and 1.5; unknown rejection code | Valid payloads pass their guards; every malformed payload is rejected by its guard. |
+| TC-001-48 | Unreadable session storage reads as null | AC-15, AC-16 | Unit | P1 | In-memory fake `Storage`. | 1. Check missing keys, invalid JSON, and wrong-shaped values for both reads.<br>2. Write participant and host Room values and read them back.<br>3. Clear the room session. | Missing keys; invalid JSON; wrong shape; valid participant and Room | Missing or unreadable values return `null`; written values read back equal; `clearRoomSession` removes both keys. |
 
 ## Traceability
 
 | AC | TC IDs |
 |---|---|
 | AC-1 | TC-001-01, TC-001-02, TC-001-03, TC-001-10, TC-001-46 |
-| AC-2 | TC-001-04, TC-001-05, TC-001-43, TC-001-46 |
-| AC-3 | TC-001-06, TC-001-43, TC-001-44 |
+| AC-2 | TC-001-04, TC-001-05, TC-001-43, TC-001-46, TC-001-47 |
+| AC-3 | TC-001-06, TC-001-43, TC-001-44, TC-001-47 |
 | AC-4 | TC-001-07, TC-001-08 |
 | AC-5 | TC-001-09, TC-001-10, TC-001-11, TC-001-27 |
 | AC-6 | TC-001-12, TC-001-13, TC-001-14, TC-001-32 |
@@ -85,15 +87,15 @@
 | AC-12 | TC-001-21, TC-001-24, TC-001-25, TC-001-26, TC-001-27 |
 | AC-13 | TC-001-28, TC-001-29 |
 | AC-14 | TC-001-30, TC-001-31 |
-| AC-15 | TC-001-33, TC-001-34, TC-001-35, TC-001-43 |
-| AC-16 | TC-001-36, TC-001-37, TC-001-38 |
+| AC-15 | TC-001-33, TC-001-34, TC-001-35, TC-001-43, TC-001-48 |
+| AC-16 | TC-001-36, TC-001-37, TC-001-38, TC-001-48 |
 | AC-17 | TC-001-39, TC-001-40 |
 | AC-18 | TC-001-41, TC-001-42 |
 | AC-19 | TC-001-45 |
 
 Story assumptions: A-11 is covered by TC-001-37 and TC-001-38; A-12 by TC-001-16; A-13 by TC-001-45 and TC-001-46.
 
-All 19 acceptance criteria are covered; none are missing. **Count:** 22 Unit cases, 24 E2E cases (46 total).
+All 19 acceptance criteria are covered; none are missing. **Count:** 24 Unit cases, 24 E2E cases (48 total).
 
 ## Assumptions
 

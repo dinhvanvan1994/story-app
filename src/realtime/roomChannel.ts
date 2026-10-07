@@ -1,4 +1,9 @@
 import type { RealtimeChannelSendResponse } from "@supabase/supabase-js";
+import {
+  isRoomIntentPayload,
+  isRoomRejectedPayload,
+  isRoomStatePayload,
+} from "../domain/messageGuards";
 import { supabaseClient } from "../lib/supabaseClient";
 import type {
   JoinIntent,
@@ -37,13 +42,19 @@ export function openRoomChannel(
 
   channel
     .on("broadcast", { event: "room:intent" }, ({ payload }) => {
-      handlers.onIntent(payload as RoomIntentPayload);
+      if (isRoomIntentPayload(payload)) {
+        handlers.onIntent(payload);
+      }
     })
     .on("broadcast", { event: "room:state" }, ({ payload }) => {
-      handlers.onState(payload as RoomStatePayload);
+      if (isRoomStatePayload(payload)) {
+        handlers.onState(payload);
+      }
     })
     .on("broadcast", { event: "room:rejected" }, ({ payload }) => {
-      handlers.onRejected(payload as RoomRejectedPayload);
+      if (isRoomRejectedPayload(payload)) {
+        handlers.onRejected(payload);
+      }
     })
     .subscribe((status, error) => {
       handlers.onStatus(status, error);
