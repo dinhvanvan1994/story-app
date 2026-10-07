@@ -22,6 +22,20 @@ function App() {
     joinRoom,
   } = useRoomSession();
 
+  /* Room view takes full viewport - no wrapper */
+  if (room !== null) {
+    return (
+      <RoomView
+        onCastVote={castVote}
+        onNextStory={nextStory}
+        onRevealVotes={revealVotes}
+        onStartStory={startStory}
+        revealError={revealError}
+        room={room}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 px-4 py-12 text-slate-900">
       <header className="mx-auto mb-10 max-w-5xl text-center">
@@ -40,15 +54,6 @@ function App() {
           >
             Reconnecting to Room...
           </p>
-        ) : room !== null ? (
-          <RoomView
-            onCastVote={castVote}
-            onNextStory={nextStory}
-            onRevealVotes={revealVotes}
-            onStartStory={startStory}
-            revealError={revealError}
-            room={room}
-          />
         ) : (
           <div className="grid w-full grid-cols-1 justify-items-center gap-6 md:grid-cols-2">
             <CreateRoomForm

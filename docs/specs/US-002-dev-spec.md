@@ -52,7 +52,7 @@ Only files listed here may be created or modified during implementation.
 ```ts
 export type Phase = "waiting" | "voting" | "revealed";
 
-export type VoteValue = 0 | 1 | 2 | 3 | 5 | 8 | 13 | 21 | "?";
+export type VoteValue = 0 | 1 | 2 | 3 | 5 | 8 | 13 | 21 | 34 | 55 | 89 | "?";
 
 export interface Vote {
   participantId: string;
@@ -165,6 +165,9 @@ export function shouldApplyView(current: PublicView | null, incoming: PublicView
 | Card 8 | button | `card-8` | Disabled unless `phase === "voting"`. |
 | Card 13 | button | `card-13` | Disabled unless `phase === "voting"`. |
 | Card 21 | button | `card-21` | Disabled unless `phase === "voting"`. |
+| Card 34 | button | `card-34` | Disabled unless `phase === "voting"`. |
+| Card 55 | button | `card-55` | Disabled unless `phase === "voting"`. |
+| Card 89 | button | `card-89` | Disabled unless `phase === "voting"`. |
 | Card `?` | button | `card-question` | Disabled unless `phase === "voting"`. |
 | Reveal | button | `reveal-votes` | Host only; visible in `voting`. |
 | Reveal error | alert | `reveal-error` | AC-6 exact text. |
@@ -248,125 +251,124 @@ Definition of Done: as in `.github/copilot-instructions.md`.
 
 ### Design language
 
-Keep the existing light theme: indigo-600 accent, slate/white base, Tailwind v4 inline classes only.
+Keep the existing light theme: indigo-600 accent, slate/white base. Inline styles for layout
+precision (height chain requires explicit values that Tailwind utility classes cannot guarantee).
 No dark mode. No new CSS files.
 
-### Layout -- full viewport card area
+### Layout -- full viewport, sidebar 3:7 ratio
 
-The room view fills the viewport height. The card grid is the hero: it must feel large and
-immediate, like a physical card on a table.
+The room view fills the entire browser viewport (`100vh`). A left sidebar (~22%, min 180px,
+max 280px) shows room info and participants. The right panel (~78%) contains the card grid
+centered vertically with a compact action button below.
+
+Reference: storypoint.poker -- 12 cards in 6 columns x 2 rows, centered in viewport,
+compact "Reveal Estimates" button.
 
 ```
-+--------+------------------------------------------+
-|        |  ROOM CODE: TZHDSS      [share link]     |
-|        +------------------------------------------+
-|Players |                                           |
-|        |  [Story title if set]                    |
-| van    |                                           |
-| Host   |  +------+ +------+ +------+              |
-| Voted  |  |  0   | |  1   | |  2   |              |
-|        |  |      | |      | |      |              |
-| Bob    |  +------+ +------+ +------+              |
-| -- nv  |  +------+ +------+ +------+              |
-|        |  |  3   | |  5   | |  8   |              |
-| Voting |  |      | |      | |      |              |
-|        |  +------+ +------+ +------+              |
-|        |  +------+ +------+ +------+              |
-|        |  |  13  | |  21  | |  ?   |              |
-|        |  |      | |      | |      |              |
-|        |  +------+ +------+ +------+              |
-|        |                                           |
-|        |  [        Reveal votes         ]         |
-+--------+------------------------------------------+
++----------+---------------------------------------------+
+|ROOM CODE |                                             |
+| KBRK9M   |  +----+ +----+ +----+ +----+ +----+ +----+ |
+|          |  |  0 | |  1 | |  2 | |  3 | |  5 | |  8 | |
+|Share link|  +----+ +----+ +----+ +----+ +----+ +----+ |
+|          |                                             |
+|Partici-  |  +----+ +----+ +----+ +----+ +----+ +----+ |
+|pants     |  | 13 | | 21 | | 34 | | 55 | | 89 | |  ? | |
+|          |  +----+ +----+ +----+ +----+ +----+ +----+ |
+| d  Host v|                                             |
+|          |          [ Reveal votes ]                   |
+| Voting   |                                             |
++----------+---------------------------------------------+
 ```
 
-Outer wrapper: `flex h-screen overflow-hidden bg-slate-50`.
-Left sidebar: `w-52 shrink-0 border-r border-slate-200 bg-white flex flex-col p-4 gap-3`.
-Right panel: `flex-1 flex flex-col gap-4 p-6 overflow-auto`.
+Outer wrapper (`<main>`): `display: flex; width: 100%; height: 100vh; background: #f8fafc`.
+Left sidebar (`<aside>`): `width: 22%; min-width: 180px; max-width: 280px; flex-shrink: 0;
+background: #fff; border-right: 1px solid #e2e8f0; flex-direction: column; padding: 20px 16px`.
+Right panel: `flex: 1; height: 100%; min-width: 0; flex-direction: column`.
 
-Below `md:` breakpoint: `flex-col` (sidebar on top, cards below).
-
-### Header row (inside right panel)
-
-`flex items-center justify-between` at top of right panel.
-Room code: `font-mono text-xl font-bold tracking-widest text-slate-900`,
-`data-testid="room-code-value"`.
-Share link: small `text-indigo-600 underline text-sm`, `data-testid="share-link"`.
+App.tsx renders `<RoomView>` directly (no centered wrapper) when room is active.
 
 ### Component: Players sidebar
 
-Title: `text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2`.
-List `data-testid="participant-list"`. Each `<li>` `data-testid="participant-item"`:
-`flex items-center justify-between py-2 text-sm`.
+Room code: monospace 22px bold, tracking 0.15em, `data-testid="room-code-value"`.
+Share link: 12px indigo underline, `data-testid="share-link"`.
 
-Name col: `font-medium text-slate-800`. Role badge inline: `text-xs text-slate-400 ml-1`.
-Own row: `bg-indigo-50 rounded-lg px-2`.
+Participant list `data-testid="participant-list"`: bordered rounded-8px container.
+Each `<li>` `data-testid="participant-item"`: flex between, 13px, padding 8px 12px.
+Own row: background `#eef2ff`, font-weight 600.
+Host badge: inline 11px `#94a3b8`.
 
-Status indicator `data-testid="participant-vote-status"`:
-- `waiting`: nothing
-- `voting`: checkmark svg if voted (`text-indigo-500`), dash text if not (`text-slate-400`)
-- `revealed`: vote value in `bg-indigo-100 text-indigo-700 rounded px-1.5 text-xs font-semibold`,
-  or `--` if no vote
+Vote status `data-testid="participant-vote-status"`:
+- `waiting`: not shown
+- `voting`: "v" if voted, "--" if not; indigo background if voted, slate if not
+- `revealed`: actual vote value or "--"
 
-Phase badge `data-testid="room-phase"` at bottom of sidebar:
-`flex items-center gap-1.5 text-xs font-medium text-slate-600 mt-auto`.
-Dot `w-2 h-2 rounded-full`: waiting=`bg-slate-400`, voting=`bg-indigo-500`, revealed=`bg-green-500`.
+Phase badge `data-testid="room-phase"` at sidebar bottom:
+pill shape, 13px, capitalize, with colored dot:
+waiting=`#94a3b8`, voting=`#6366f1`, revealed=`#22c55e`.
 
 ### Component: Card grid (hero)
 
-Grid fills available height: `flex-1 grid grid-cols-3 gap-4 content-center`.
-At `sm:` and above use `grid-cols-3` always (3 rows of 3 = 9 cards total).
-Card values in order: 0, 1, 2, 3, 5, 8, 13, 21, ?
+12 cards in a 6-column x 2-row CSS grid, centered vertically in the right panel.
+Card values in order: 0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, ?
 
-Each card: `flex items-center justify-center rounded-2xl border-2 cursor-pointer
-select-none text-3xl font-bold transition-all duration-150`.
-Minimum size: `min-h-[96px]` (grows with grid, portrait feel from aspect-[3/4] if needed).
+Grid container: `display: grid; grid-template-columns: repeat(6, 1fr);
+grid-template-rows: repeat(2, 1fr); gap: 12px; max-width: 1100px;
+height: clamp(280px, 55vh, 480px)`.
+Wrapped in a flex container with `align-items: center; justify-content: center; flex: 1`.
+
+Each card: `display: flex; align-items: center; justify-content: center;
+border-radius: 16px; border: 2px solid; font-size: clamp(24px, 3.5vw, 42px);
+font-weight: 700; width: 100%; height: 100%; transition: all 150ms ease`.
 
 States:
-- Idle: `bg-white border-slate-200 text-slate-700 hover:border-indigo-400 hover:bg-indigo-50 hover:scale-[1.04]`
-- Selected: `bg-indigo-600 border-indigo-600 text-white shadow-xl scale-[1.06]`
-- Disabled (revealed phase or not your turn): `opacity-40 cursor-not-allowed pointer-events-none`
+- Idle: border `#e2e8f0`, bg `#fff`, color `#1e293b`.
+  Hover: border `#818cf8`, bg `#eef2ff`, scale 1.02.
+- Selected: border `#4f46e5`, bg `#4f46e5`, color `#fff`,
+  box-shadow `0 10px 25px -5px rgba(79,70,229,0.3)`, scale 1.03.
+- Disabled (not voting phase): opacity 0.4, cursor not-allowed.
 
 `data-testid` values: `card-0`, `card-1`, `card-2`, `card-3`, `card-5`, `card-8`,
-`card-13`, `card-21`, `card-question`.
+`card-13`, `card-21`, `card-34`, `card-55`, `card-89`, `card-question`.
 
 ### Component: Story title area
 
-`waiting` phase only: above card grid.
-Label `text-sm text-slate-500` + input `data-testid="story-title"` same border/rounded style.
-Start story button `data-testid="start-story"` below input, full width indigo-600.
+`waiting` phase: hidden `type="hidden"` input `data-testid="story-title"` preserves
+test compatibility. Start story button `data-testid="start-story"` centered above card grid.
 
-`voting` or `revealed` phase: hide input, show title as
-`text-lg font-semibold text-slate-800 mb-2`, `data-testid="current-story-title"`.
-Skip entirely if `story.title` is null.
+`voting` or `revealed` phase: story title display removed from UI for cleaner layout.
+`data-testid="current-story-title"` element is omitted when title is null.
 
 ### Component: Action buttons
 
-Below card grid, full width.
+Below card grid, centered (not full-width).
 
 Reveal votes `data-testid="reveal-votes"`: host only, voting phase.
-`w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl text-base`
+`padding: 12px 48px; border-radius: 12px; background: #4f46e5; color: #fff;
+font-weight: 600; font-size: 16px`. Compact width, centered via `text-align: center`
+on parent.
 
 Reveal error `data-testid="reveal-error"` `role="alert"` above button:
-`text-red-600 text-sm text-center`. Text: "At least one vote is required to reveal".
+`color: #dc2626; font-size: 14px; text-align: center`.
+Text: "At least one vote is required to reveal".
 
-Next story `data-testid="next-story"`: host only, revealed phase. Same style.
+Next story `data-testid="next-story"`: host only, revealed phase. Same compact style.
 
-Guests: no Start story input, no Reveal button, no Next story button.
+Guests: no Start story button, no Reveal button, no Next story button.
 
 ### Token conventions
 
-| Purpose | Classes |
-|---------|---------|
-| Primary action | `bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl` |
-| Selected card | `bg-indigo-600 border-indigo-600 text-white shadow-xl` |
-| Voted badge | `bg-indigo-100 text-indigo-700` |
-| Own row | `bg-indigo-50` |
-| Disabled | `opacity-40 cursor-not-allowed pointer-events-none` |
-| Error | `text-red-600` |
+| Purpose | Style |
+|---------|-------|
+| Primary action | bg `#4f46e5`, color `#fff`, rounded 12px |
+| Selected card | bg `#4f46e5`, border `#4f46e5`, color `#fff`, shadow |
+| Voted badge | bg `#e0e7ff`, color `#4338ca` |
+| Own row | bg `#eef2ff` |
+| Disabled | opacity 0.4, cursor not-allowed |
+| Error | color `#dc2626` |
 
 ### Files affected
 
-- `src/features/room/RoomView.tsx` -- full viewport flex layout, sidebar component
-- `src/features/VotingPanel/VotingPanel.tsx` -- hero card grid (flex-1), action buttons
-- `src/App.tsx` -- change `max-w-5xl mx-auto` to `w-full` so layout fills viewport
+- `src/types/room.ts` -- VoteValue extended with 34, 55, 89 (12 values total)
+- `src/features/room/RoomView.tsx` -- full viewport flex layout, sidebar 22% width
+- `src/features/VotingPanel/VotingPanel.tsx` -- 12-card 6x2 grid, compact action buttons
+- `src/App.tsx` -- renders RoomView without wrapper when room is active

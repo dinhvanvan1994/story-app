@@ -21,137 +21,189 @@ function RoomView({
   onNextStory,
 }: RoomViewProps) {
   const shareLink = createShareLink(room.roomCode, window.location.origin);
-  const phaseDotClass = {
-    waiting: "bg-slate-400",
-    voting: "bg-indigo-500",
-    revealed: "bg-green-500",
+  const phaseDotColor = {
+    waiting: "#94a3b8",
+    voting: "#6366f1",
+    revealed: "#22c55e",
   }[room.phase];
 
   return (
     <main
-      className="w-full max-w-5xl rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8"
       data-testid="room-view"
+      style={{
+        display: "flex",
+        width: "100%",
+        height: "100vh",
+        background: "#f8fafc",
+      }}
     >
-      <header className="flex flex-wrap items-start justify-between gap-6">
-        <div>
-          <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
+      {/* Left sidebar - 3 parts */}
+      <aside
+        style={{
+          width: "22%",
+          minWidth: "180px",
+          maxWidth: "280px",
+          flexShrink: 0,
+          background: "#ffffff",
+          borderRight: "1px solid #e2e8f0",
+          display: "flex",
+          flexDirection: "column",
+          padding: "20px 16px",
+          overflowY: "auto",
+        }}
+      >
+        {/* Room code */}
+        <div style={{ marginBottom: "16px" }}>
+          <p style={{ fontSize: "11px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: "#94a3b8", margin: 0 }}>
             Room code
           </p>
           <p
-            className="mt-1 font-mono text-3xl font-bold tracking-[0.2em] text-slate-900"
             data-testid="room-code-value"
+            style={{ fontFamily: "monospace", fontSize: "22px", fontWeight: 700, letterSpacing: "0.15em", color: "#0f172a", margin: "4px 0 0" }}
           >
             {room.roomCode}
           </p>
         </div>
-        <div>
-          <p className="text-sm font-medium text-slate-700">Share link</p>
+
+        {/* Share link */}
+        <div style={{ marginBottom: "20px" }}>
+          <p style={{ fontSize: "11px", fontWeight: 500, color: "#64748b", margin: 0 }}>Share link</p>
           <a
-            className="mt-1 inline-block break-all text-sm text-indigo-700 underline underline-offset-2"
             data-testid="share-link"
             href={shareLink}
+            style={{ fontSize: "12px", color: "#4f46e5", wordBreak: "break-all", textDecoration: "underline" }}
           >
             {shareLink}
           </a>
         </div>
-      </header>
 
-      <div className="mt-8 flex flex-col items-start gap-6 md:flex-row">
-        <aside className="w-full md:w-56 md:shrink-0">
-          <section aria-labelledby="participants-heading">
-            <h2
-              className="text-lg font-semibold text-slate-900"
-              id="participants-heading"
-            >
-              Participants
-            </h2>
-            <ul
-              className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200"
-              data-testid="participant-list"
-            >
-              {room.participants.map((participant) => {
-                const publicVote = room.votes.find(
-                  ({ participantId }) => participantId === participant.id,
-                );
-                const isCurrentParticipant =
-                  participant.id === room.participantId;
-                const ownVote = isCurrentParticipant ? room.ownVote : null;
-                const voteStatus =
-                  room.phase === "revealed"
-                    ? publicVote?.value === undefined
-                      ? "--"
-                      : String(publicVote.value)
-                    : ownVote !== null
-                      ? String(ownVote)
-                      : publicVote?.hasVoted
-                        ? "Voted"
-                        : "Not voted";
-                const hasVoted = publicVote?.hasVoted ?? ownVote !== null;
+        {/* Participants */}
+        <div style={{ flex: 1 }}>
+          <h2 style={{ fontSize: "14px", fontWeight: 600, color: "#0f172a", margin: "0 0 8px" }} id="participants-heading">
+            Participants
+          </h2>
+          <ul
+            data-testid="participant-list"
+            style={{ listStyle: "none", margin: 0, padding: 0, border: "1px solid #e2e8f0", borderRadius: "8px", overflow: "hidden" }}
+          >
+            {room.participants.map((participant) => {
+              const publicVote = room.votes.find(
+                ({ participantId }) => participantId === participant.id,
+              );
+              const isCurrentParticipant = participant.id === room.participantId;
+              const ownVote = isCurrentParticipant ? room.ownVote : null;
+              const voteStatus =
+                room.phase === "revealed"
+                  ? publicVote?.value === undefined
+                    ? "--"
+                    : String(publicVote.value)
+                  : ownVote !== null
+                    ? String(ownVote)
+                    : publicVote?.hasVoted
+                      ? "Voted"
+                      : "Not voted";
+              const hasVoted = publicVote?.hasVoted ?? ownVote !== null;
 
-                return (
-                  <li
-                    className={`flex items-center justify-between gap-2 px-3 py-3 text-sm text-slate-800 sm:px-4 ${
-                      isCurrentParticipant
-                        ? "bg-indigo-50 font-semibold"
-                        : "bg-white"
-                    }`}
-                    data-testid="participant-item"
-                    key={participant.id}
-                  >
-                    <span className="min-w-0 truncate">
-                      {participant.displayName}
-                      {participant.role === "host" && (
-                        <span className="ml-1 text-xs font-normal text-slate-500">
-                          Host
-                        </span>
-                      )}
-                    </span>
-                    {room.phase !== "waiting" && (
-                      <span
-                        aria-label={`${participant.displayName}: ${voteStatus}`}
-                        className={`shrink-0 rounded px-2 py-1 text-xs font-semibold ${
-                          room.phase === "revealed"
-                            ? "bg-indigo-100 text-indigo-700"
-                            : hasVoted
-                              ? "bg-indigo-100 text-indigo-700"
-                              : "bg-slate-100 text-slate-500"
-                        }`}
-                        data-testid="participant-vote-status"
-                      >
-                        {room.phase === "revealed"
-                          ? voteStatus
-                          : `${hasVoted ? "✓" : "—"} ${voteStatus}`}
+              return (
+                <li
+                  data-testid="participant-item"
+                  key={participant.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "8px",
+                    padding: "8px 12px",
+                    fontSize: "13px",
+                    color: "#1e293b",
+                    background: isCurrentParticipant ? "#eef2ff" : "#ffffff",
+                    fontWeight: isCurrentParticipant ? 600 : 400,
+                    borderBottom: "1px solid #f1f5f9",
+                  }}
+                >
+                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {participant.displayName}
+                    {participant.role === "host" && (
+                      <span style={{ marginLeft: "4px", fontSize: "11px", fontWeight: 400, color: "#94a3b8" }}>
+                        Host
                       </span>
                     )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+                  </span>
+                  {room.phase !== "waiting" && (
+                    <span
+                      aria-label={`${participant.displayName}: ${voteStatus}`}
+                      data-testid="participant-vote-status"
+                      style={{
+                        flexShrink: 0,
+                        borderRadius: "4px",
+                        padding: "2px 8px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        background: hasVoted ? "#e0e7ff" : "#f1f5f9",
+                        color: hasVoted ? "#4338ca" : "#94a3b8",
+                      }}
+                    >
+                      {room.phase === "revealed" ? voteStatus : (hasVoted ? "v" : "--")}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
 
+        {/* Phase badge */}
+        <div style={{ marginTop: "16px" }}>
           <p
             aria-label={`Phase: ${room.phase}`}
-            className="mt-4 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 text-sm font-medium capitalize text-slate-700"
             data-testid="room-phase"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              borderRadius: "999px",
+              background: "#f1f5f9",
+              padding: "6px 12px",
+              fontSize: "13px",
+              fontWeight: 500,
+              color: "#475569",
+              textTransform: "capitalize",
+              margin: 0,
+            }}
           >
             <span
               aria-hidden="true"
-              className={`h-2.5 w-2.5 rounded-full ${phaseDotClass}`}
+              style={{
+                display: "inline-block",
+                width: "8px",
+                height: "8px",
+                borderRadius: "50%",
+                background: phaseDotColor,
+              }}
             />
             {room.phase}
           </p>
-        </aside>
-
-        <div className="min-w-0 flex-1">
-          <VotingPanel
-            onCastVote={onCastVote}
-            onNextStory={onNextStory}
-            onRevealVotes={onRevealVotes}
-            onStartStory={onStartStory}
-            revealError={revealError}
-            room={room}
-          />
         </div>
+      </aside>
+
+      {/* Right panel - 7 parts */}
+      <div
+        style={{
+          flex: 1,
+          height: "100%",
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <VotingPanel
+          onCastVote={onCastVote}
+          onNextStory={onNextStory}
+          onRevealVotes={onRevealVotes}
+          onStartStory={onStartStory}
+          revealError={revealError}
+          room={room}
+        />
       </div>
     </main>
   );

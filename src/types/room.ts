@@ -2,7 +2,7 @@ export type ParticipantRole = "host" | "guest";
 
 export type Phase = "waiting" | "voting" | "revealed";
 
-export type VoteValue = 0 | 1 | 2 | 3 | 5 | 8 | 13 | 21 | "?";
+export type VoteValue = 0 | 1 | 2 | 3 | 5 | 8 | 13 | 21 | 34 | 55 | 89 | "?";
 
 export interface Participant {
   id: string;
