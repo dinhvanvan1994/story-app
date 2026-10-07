@@ -1,4 +1,9 @@
-import type { Participant, ParticipantRole, Room } from "../types/room";
+import type {
+  Participant,
+  ParticipantRole,
+  RoomState,
+  VoteValue,
+} from "../types/room";
 
 export const PARTICIPANT_STORAGE_KEY = "story-app:participant";
 export const HOST_ROOM_STORAGE_KEY = "story-app:host-room";
@@ -21,11 +26,46 @@ function isParticipantRole(value: unknown): value is ParticipantRole {
 function isParticipant(value: unknown): value is Participant {
   return (
     isRecord(value) &&
+    Object.keys(value).every((key) =>
+      ["id", "displayName", "role"].includes(key),
+    ) &&
     typeof value.id === "string" &&
     value.id.length > 0 &&
     typeof value.displayName === "string" &&
     value.displayName.length > 0 &&
     isParticipantRole(value.role)
+  );
+}
+
+function isStoredVote(
+  value: unknown,
+): value is RoomState["votes"][number] {
+  return (
+    isRecord(value) &&
+    Object.keys(value).every((key) =>
+      ["participantId", "value"].includes(key),
+    ) &&
+    typeof value.participantId === "string" &&
+    value.participantId.length > 0 &&
+    isVoteValue(value.value)
+  );
+}
+
+function isPhase(value: unknown): value is RoomState["phase"] {
+  return value === "waiting" || value === "voting" || value === "revealed";
+}
+
+function isVoteValue(value: unknown): value is VoteValue {
+  return (
+    value === 0 ||
+    value === 1 ||
+    value === 2 ||
+    value === 3 ||
+    value === 5 ||
+    value === 8 ||
+    value === 13 ||
+    value === 21 ||
+    value === "?"
   );
 }
 
@@ -42,8 +82,8 @@ function isParticipantSession(value: unknown): value is ParticipantSession {
   );
 }
 
-function isRoom(value: unknown): value is Room {
-  return (
+function isRoom(value: unknown): value is RoomState {
+  if (
     isRecord(value) &&
     typeof value.code === "string" &&
     value.code.length > 0 &&
@@ -53,8 +93,35 @@ function isRoom(value: unknown): value is Room {
     value.participants.every(isParticipant) &&
     typeof value.revision === "number" &&
     Number.isInteger(value.revision) &&
-    value.revision >= 1
-  );
+    value.revision >= 1 &&
+    isPhase(value.phase) &&
+    Array.isArray(value.votes) &&
+    value.votes.every(isStoredVote) &&
+    (value.story === null ||
+      (isRecord(value.story) &&
+        Object.keys(value.story).every((key) => key === "title") &&
+        (value.story.title === null || typeof value.story.title === "string")))
+  ) {
+    const participantIds = value.participants.map(
+      (participant) => participant.id,
+    );
+    const voteIds = value.votes.map((vote) => vote.participantId);
+    const host = value.participants.find(
+      (participant) => participant.id === value.hostParticipantId,
+    );
+    return (
+      host?.role === "host" &&
+      value.participants.filter(({ role }) => role === "host").length === 1 &&
+      new Set(participantIds).size === participantIds.length &&
+      new Set(voteIds).size === voteIds.length &&
+      voteIds.every((id: string) => participantIds.includes(id)) &&
+      (value.phase === "waiting"
+        ? value.story === null && voteIds.length === 0
+        : value.story !== null) &&
+      (value.phase !== "revealed" || voteIds.length > 0)
+    );
+  }
+  return false;
 }
 
 function readStoredValue<T>(
@@ -92,12 +159,12 @@ export function writeParticipantSession(
   storage.setItem(PARTICIPANT_STORAGE_KEY, JSON.stringify(participant));
 }
 
-export function readHostRoom(storage?: Storage): Room | null {
+export function readHostRoom(storage?: Storage): RoomState | null {
   return readStoredValue(HOST_ROOM_STORAGE_KEY, isRoom, storage);
 }
 
 export function writeHostRoom(
-  room: Room,
+  room: RoomState,
   storage: Storage = sessionStorage,
 ): void {
   storage.setItem(HOST_ROOM_STORAGE_KEY, JSON.stringify(room));

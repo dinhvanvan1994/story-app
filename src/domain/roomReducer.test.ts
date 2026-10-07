@@ -22,6 +22,7 @@ const joinIntent = (
 const roomWithHost = () => createRoom("A7K9Q2", "host-1", "Maya Chen");
 
 describe("room reducer domain", () => {
+  // TC-001-03
   it("US-001 TC-001-03 creates a room and its public view", () => {
     const room = createRoom("A7K9Q2", "host-1", "Maya Chen");
     const view = createPublicView(room);
@@ -33,12 +34,18 @@ describe("room reducer domain", () => {
         { id: "host-1", displayName: "Maya Chen", role: "host" },
       ],
       revision: 1,
+      phase: "waiting",
+      story: null,
+      votes: [],
     });
     expect(Object.keys(view)).toEqual([
       "roomCode",
       "hostParticipantId",
       "participants",
       "revision",
+      "phase",
+      "story",
+      "votes",
     ]);
     expect(view).toEqual({
       roomCode: "A7K9Q2",
@@ -47,9 +54,13 @@ describe("room reducer domain", () => {
         { id: "host-1", displayName: "Maya Chen", role: "host" },
       ],
       revision: 1,
+      phase: "waiting",
+      story: null,
+      votes: [{ participantId: "host-1", hasVoted: false }],
     });
   });
 
+  // TC-001-05
   it("US-001 TC-001-05 accepts a new guest and appends the participant", () => {
     const room = roomWithHost();
     const result = applyJoinIntent(room, joinIntent("guest-1", "Noah Patel"));
@@ -61,8 +72,28 @@ describe("room reducer domain", () => {
         { id: "guest-1", displayName: "Noah Patel", role: "guest" },
       ]);
     }
+
+    const activeRoom = {
+      ...room,
+      phase: "voting" as const,
+      story: { title: "Checkout flow" },
+      votes: [{ participantId: "host-1", value: 5 as const }],
+    };
+    const lateGuest = applyJoinIntent(
+      activeRoom,
+      joinIntent("guest-2", "Ava Kim"),
+    );
+    expect(lateGuest.accepted).toBe(true);
+    if (lateGuest.accepted) {
+      expect(lateGuest.room).toMatchObject({
+        phase: "voting",
+        story: { title: "Checkout flow" },
+        votes: [{ participantId: "host-1", value: 5 }],
+      });
+    }
   });
 
+  // TC-001-12
   it("US-001 TC-001-12 rejects a duplicate name without changing the room", () => {
     const room = createRoom("A7K9Q2", "host-1", "Maya Chen");
     const guest = applyJoinIntent(room, joinIntent("guest-1", "Noah Patel"));
@@ -91,6 +122,7 @@ describe("room reducer domain", () => {
     expect(originalRoom.participants).toHaveLength(2);
   });
 
+  // TC-001-33
   it("US-001 TC-001-33 treats rejoining with the same ID as idempotent", () => {
     const room = roomWithHost();
     const joined = applyJoinIntent(room, joinIntent("guest-1", "Noah Patel"));
@@ -119,6 +151,7 @@ describe("room reducer domain", () => {
     ).toBe("Noah Patel");
   });
 
+  // TC-001-43
   it("US-001 TC-001-43 increments revisions only for accepted changes", () => {
     const room = roomWithHost();
     expect(room.revision).toBe(1);
@@ -146,6 +179,7 @@ describe("room reducer domain", () => {
     expect(createPublicView(added.room).revision).toBe(2);
   });
 
+  // TC-001-44
   it("US-001 TC-001-44 applies only first or strictly newer public views", () => {
     const participants: Participant[] = [
       { id: "host-1", displayName: "Maya Chen", role: "host" },
@@ -155,6 +189,12 @@ describe("room reducer domain", () => {
       hostParticipantId: "host-1",
       participants,
       revision,
+      phase: "waiting",
+      story: null,
+      votes: participants.map(({ id }) => ({
+        participantId: id,
+        hasVoted: false,
+      })),
     });
 
     expect(shouldApplyView(null, view(1))).toBe(true);

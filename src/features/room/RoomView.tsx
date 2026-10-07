@@ -1,13 +1,26 @@
 import { createShareLink } from "../../domain/roomCode";
-import type { Participant } from "../../types/room";
+import VotingPanel from "../VotingPanel/VotingPanel";
+import type { RoomViewState } from "./useRoomSession";
+import type { VoteValue } from "../../types/room";
 
 interface RoomViewProps {
-  roomCode: string;
-  participants: Participant[];
+  room: RoomViewState;
+  revealError: string;
+  onStartStory: (title: string) => void;
+  onCastVote: (value: VoteValue) => void;
+  onRevealVotes: () => void;
+  onNextStory: () => void;
 }
 
-function RoomView({ roomCode, participants }: RoomViewProps) {
-  const shareLink = createShareLink(roomCode, window.location.origin);
+function RoomView({
+  room,
+  revealError,
+  onStartStory,
+  onCastVote,
+  onRevealVotes,
+  onNextStory,
+}: RoomViewProps) {
+  const shareLink = createShareLink(room.roomCode, window.location.origin);
 
   return (
     <main
@@ -23,7 +36,7 @@ function RoomView({ roomCode, participants }: RoomViewProps) {
             className="mt-1 font-mono text-3xl font-bold tracking-[0.2em] text-slate-900"
             data-testid="room-code-value"
           >
-            {roomCode}
+            {room.roomCode}
           </p>
         </div>
         <div>
@@ -49,7 +62,7 @@ function RoomView({ roomCode, participants }: RoomViewProps) {
           className="mt-3 divide-y divide-slate-100 rounded-lg border border-slate-200"
           data-testid="participant-list"
         >
-          {participants.map((participant) => (
+          {room.participants.map((participant) => (
             <li
               className="flex items-center justify-between px-4 py-3 text-slate-800"
               data-testid="participant-item"
@@ -65,6 +78,14 @@ function RoomView({ roomCode, participants }: RoomViewProps) {
           ))}
         </ul>
       </section>
+      <VotingPanel
+        onCastVote={onCastVote}
+        onNextStory={onNextStory}
+        onRevealVotes={onRevealVotes}
+        onStartStory={onStartStory}
+        revealError={revealError}
+        room={room}
+      />
     </main>
   );
 }

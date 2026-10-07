@@ -9,6 +9,11 @@ function App() {
     connecting,
     createError,
     createRoom,
+    startStory,
+    castVote,
+    revealVotes,
+    nextStory,
+    revealError,
     joining,
     reconnecting,
     joinError,
@@ -37,8 +42,12 @@ function App() {
           </p>
         ) : room !== null ? (
           <RoomView
-            participants={room.participants}
-            roomCode={room.roomCode}
+            onCastVote={castVote}
+            onNextStory={nextStory}
+            onRevealVotes={revealVotes}
+            onStartStory={startStory}
+            revealError={revealError}
+            room={room}
           />
         ) : (
           <div className="grid w-full grid-cols-1 justify-items-center gap-6 md:grid-cols-2">

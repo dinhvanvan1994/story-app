@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   applyJoinIntent,
-  createPublicView,
   createRoom as createRoomState,
 } from "../../domain/roomReducer";
+import { createPublicView, reduceRoom } from "../../domain/room";
 import { validateDisplayName } from "../../domain/displayName";
 import { generateRoomCode } from "../../domain/roomCode";
 import { openRoomChannel, type RoomChannel } from "../../realtime/roomChannel";
@@ -18,9 +18,12 @@ import {
 } from "../../storage/roomSession";
 import {
   HOST_CONNECTION_ERROR,
+  type RoomAction,
   type Room,
   type RoomIntentPayload,
   type RoomRejectedPayload,
+  type VoteCastIntent,
+  type VoteValue,
 } from "../../types/room";
 
 export interface InitialHostSession {
@@ -38,7 +41,12 @@ interface HostRoomSession {
   room: Room | null;
   connecting: boolean;
   createError: string;
+  revealError: string;
   createRoom: (displayName: string) => void;
+  startStory: (title: string) => void;
+  castVote: (value: VoteValue) => void;
+  revealVotes: () => void;
+  nextStory: () => void;
 }
 
 export function readInitialHostSession(): InitialHostSession {
@@ -73,6 +81,7 @@ export function useHostRoomSession(
     });
   const [connecting, setConnecting] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [revealError, setRevealError] = useState("");
   const roomRef = useRef(room);
   const channelRef = useRef<RoomChannel | null>(null);
   const channelRequestRef = useRef(channelRequest);
@@ -83,6 +92,77 @@ export function useHostRoomSession(
     roomRef.current = nextRoom;
     setRoom(nextRoom);
   }, []);
+
+  const dispatchAction = useCallback((action: RoomAction) => {
+    const currentRoom = roomRef.current;
+    if (currentRoom === null) {
+      return;
+    }
+    const result = reduceRoom(currentRoom, action);
+    if (!result.changed) {
+      setRevealError(result.error ?? "");
+      return;
+    }
+    setRevealError("");
+    updateRoom(result.room);
+    writeHostRoom(result.room);
+    const channel = channelRef.current;
+    if (channel !== null) {
+      void channel.sendState(createPublicView(result.room)).catch(
+        (error: unknown) => {
+          console.error("Failed to broadcast the updated Room view.", error);
+        },
+      );
+    }
+  }, [updateRoom]);
+
+  const startStory = useCallback(
+    (title: string) => {
+      const hostParticipantId = roomRef.current?.hostParticipantId;
+      if (hostParticipantId !== undefined) {
+        dispatchAction({
+          type: "STORY_STARTED",
+          actorParticipantId: hostParticipantId,
+          title,
+        });
+      }
+    },
+    [dispatchAction],
+  );
+
+  const castVote = useCallback(
+    (value: VoteValue) => {
+      const hostParticipantId = roomRef.current?.hostParticipantId;
+      if (hostParticipantId !== undefined) {
+        dispatchAction({
+          type: "VOTE_CAST",
+          actorParticipantId: hostParticipantId,
+          value,
+        });
+      }
+    },
+    [dispatchAction],
+  );
+
+  const revealVotes = useCallback(() => {
+    const hostParticipantId = roomRef.current?.hostParticipantId;
+    if (hostParticipantId !== undefined) {
+      dispatchAction({
+        type: "VOTES_REVEALED",
+        actorParticipantId: hostParticipantId,
+      });
+    }
+  }, [dispatchAction]);
+
+  const nextStory = useCallback(() => {
+    const hostParticipantId = roomRef.current?.hostParticipantId;
+    if (hostParticipantId !== undefined) {
+      dispatchAction({
+        type: "NEXT_STORY",
+        actorParticipantId: hostParticipantId,
+      });
+    }
+  }, [dispatchAction]);
 
   const createRoom = useCallback((displayName: string) => {
     if (connectingRef.current || roomRef.current !== null) {
@@ -218,7 +298,17 @@ export function useHostRoomSession(
     [],
   );
 
-  return { room, connecting, createError, createRoom };
+  return {
+    room,
+    connecting,
+    createError,
+    revealError,
+    createRoom,
+    startStory,
+    castVote,
+    revealVotes,
+    nextStory,
+  };
 }
 
 function createIntentProcessor(
@@ -238,24 +328,45 @@ function createIntentProcessor(
         }
 
         const currentRoom = roomRef.current;
-        const result = applyJoinIntent(currentRoom, payload.intent);
-        if (!result.accepted) {
-          const rejection: RoomRejectedPayload = {
-            requestId: payload.intent.requestId,
-            code: result.code,
-            message: result.message,
-          };
-          await channel.sendRejected(rejection);
+        const intent = payload.intent;
+        if (intent.type === "join") {
+          const result = applyJoinIntent(currentRoom, intent);
+          if (!result.accepted) {
+            const rejection: RoomRejectedPayload = {
+              requestId: intent.requestId,
+              code: result.code,
+              message: result.message,
+            };
+            await channel.sendRejected(rejection);
+            return;
+          }
+
+          if (result.room !== currentRoom) {
+            updateRoom(result.room);
+            writeHostRoom(result.room);
+          }
+          await channel.sendState(
+            createPublicView(result.room),
+            intent.requestId,
+          );
           return;
         }
 
-        if (result.room !== currentRoom) {
-          updateRoom(result.room);
-          writeHostRoom(result.room);
+        const voteIntent = intent satisfies VoteCastIntent;
+        const result = reduceRoom(currentRoom, {
+          type: "VOTE_CAST",
+          actorParticipantId: voteIntent.participantId,
+          requestId: voteIntent.requestId,
+          value: voteIntent.value,
+        });
+        if (!result.changed) {
+          return;
         }
+        updateRoom(result.room);
+        writeHostRoom(result.room);
         await channel.sendState(
           createPublicView(result.room),
-          payload.intent.requestId,
+          voteIntent.requestId,
         );
       })
       .catch((error: unknown) => {

@@ -5,10 +5,11 @@ import {
 import type {
   JoinIntent,
   Participant,
-  PublicView,
   Room,
   RoomRejectionCode,
 } from "../types/room";
+
+export { createPublicView, shouldApplyView } from "./room";
 
 type JoinIntentResult =
   | { accepted: true; room: Room }
@@ -37,15 +38,9 @@ export function createRoom(
     hostParticipantId,
     participants: [host],
     revision: 1,
-  };
-}
-
-export function createPublicView(room: Room): PublicView {
-  return {
-    roomCode: room.code,
-    hostParticipantId: room.hostParticipantId,
-    participants: room.participants.map((participant) => ({ ...participant })),
-    revision: room.revision,
+    phase: "waiting",
+    story: null,
+    votes: [],
   };
 }
 
@@ -82,11 +77,4 @@ export function applyJoinIntent(room: Room, intent: JoinIntent): JoinIntentResul
       revision: room.revision + 1,
     },
   };
-}
-
-export function shouldApplyView(
-  current: PublicView | null,
-  incoming: PublicView,
-): boolean {
-  return current === null || incoming.revision > current.revision;
 }

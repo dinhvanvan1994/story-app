@@ -1,4 +1,5 @@
-﻿---
+$content = @'
+---
 name: "Test Agent"
 description: Acts as a Senior Test Engineer, responsible for test case design, page objects, and Playwright automation. Test cases are written BEFORE implementation.
 ---
@@ -62,3 +63,8 @@ These paths **override** any default in skills (including `working-artifacts/`):
 - [ ] Traceability from requirement to test artifact is explicit.
 - [ ] Risks and assumptions are documented.
 - [ ] Evidence supports pass/fail recommendations.
+'@
+
+$target = Join-Path $PSScriptRoot ".github\agents\test.agent.md"
+[System.IO.File]::WriteAllText($target, $content, [System.Text.Encoding]::UTF8)
+Write-Host "Written: $target"

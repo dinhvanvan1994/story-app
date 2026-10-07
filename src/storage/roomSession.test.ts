@@ -40,6 +40,7 @@ class MemoryStorage implements Storage {
 }
 
 describe("room session storage", () => {
+  // TC-001-48
   it("US-001 TC-001-48 returns null for unreadable records and round-trips valid values", () => {
     const storage = new MemoryStorage();
 
@@ -72,6 +73,9 @@ describe("room session storage", () => {
         { id: "host-1", displayName: "Maya Chen", role: "host" },
       ],
       revision: 1,
+      phase: "waiting",
+      story: null,
+      votes: [],
     };
 
     writeParticipantSession(participant, storage);
@@ -84,5 +88,29 @@ describe("room session storage", () => {
     expect(storage.getItem(HOST_ROOM_STORAGE_KEY)).toBeNull();
     expect(readParticipantSession(storage)).toBeNull();
     expect(readHostRoom(storage)).toBeNull();
+  });
+
+  // TC-002-22
+  it("US-002 TC-002-22 persists the complete Round in the Host snapshot", () => {
+    const storage = new MemoryStorage();
+    const room: Room = {
+      code: "A7K9Q2",
+      hostParticipantId: "host-1",
+      participants: [
+        { id: "host-1", displayName: "Maya Chen", role: "host" },
+        { id: "guest-1", displayName: "Noah Patel", role: "guest" },
+      ],
+      revision: 5,
+      phase: "voting",
+      story: { title: "Checkout flow" },
+      votes: [{ participantId: "guest-1", value: "?" }],
+    };
+
+    writeHostRoom(room, storage);
+
+    expect(readHostRoom(storage)).toEqual(room);
+    expect(JSON.parse(storage.getItem(HOST_ROOM_STORAGE_KEY) ?? "null")).toEqual(
+      room,
+    );
   });
 });

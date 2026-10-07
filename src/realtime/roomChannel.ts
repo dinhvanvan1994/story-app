@@ -6,8 +6,8 @@ import {
 } from "../domain/messageGuards";
 import { supabaseClient } from "../lib/supabaseClient";
 import type {
-  JoinIntent,
   PublicView,
+  RoomIntent,
   RoomIntentPayload,
   RoomRejectedPayload,
   RoomStatePayload,
@@ -21,7 +21,7 @@ export interface RoomChannelHandlers {
 }
 
 export interface RoomChannel {
-  sendIntent: (intent: JoinIntent) => Promise<RealtimeChannelSendResponse>;
+  sendIntent: (intent: RoomIntent) => Promise<RealtimeChannelSendResponse>;
   sendState: (
     view: PublicView,
     requestId?: string,

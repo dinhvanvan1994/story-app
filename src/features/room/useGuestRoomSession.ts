@@ -10,7 +10,12 @@ import {
   writeParticipantSession,
   type ParticipantSession,
 } from "../../storage/roomSession";
-import type { JoinIntent, PublicView, Room } from "../../types/room";
+import type {
+  JoinIntent,
+  PublicView,
+  RoomIntent,
+  VoteValue,
+} from "../../types/room";
 
 interface GuestChannelAttempt {
   intent: JoinIntent;
@@ -20,13 +25,16 @@ interface GuestChannelAttempt {
 }
 
 interface GuestRoomSession {
-  room: Pick<Room, "code" | "participants"> | null;
+  room: PublicView | null;
+  participantId: string | null;
+  ownVote: VoteValue | null;
   joining: boolean;
   reconnecting: boolean;
   joinError: string;
   roomCodeInput: string;
   setRoomCodeInput: (value: string) => void;
   joinRoom: (roomCode: string, displayName: string) => void;
+  castVote: (value: VoteValue) => void;
 }
 
 function getRoomCodeFromUrl(): string {
@@ -45,12 +53,6 @@ function removeRoomCodeFromUrl(): void {
   );
 }
 
-function toRoomView(
-  view: PublicView,
-): Pick<Room, "code" | "participants"> {
-  return { code: view.roomCode, participants: view.participants };
-}
-
 export function useGuestRoomSession(
   initialParticipantSession: ParticipantSession | null,
 ): GuestRoomSession {
@@ -58,9 +60,8 @@ export function useGuestRoomSession(
     initialParticipantSession?.role === "guest"
       ? initialParticipantSession
       : null;
-  const [room, setRoom] = useState<Pick<Room, "code" | "participants"> | null>(
-    null,
-  );
+  const [room, setRoom] = useState<PublicView | null>(null);
+  const [ownVote, setOwnVote] = useState<VoteValue | null>(null);
   const [joining, setJoining] = useState(refreshSession !== null);
   const [reconnecting, setReconnecting] = useState(refreshSession !== null);
   const [joinError, setJoinError] = useState("");
@@ -114,7 +115,8 @@ export function useGuestRoomSession(
     (incoming: PublicView, guestSession: ParticipantSession) => {
       currentViewRef.current = incoming;
       writeParticipantSession(guestSession);
-      setRoom(toRoomView(incoming));
+      setRoom(incoming);
+      setOwnVote(null);
       confirmAttempt();
       removeRoomCodeFromUrl();
     },
@@ -249,8 +251,16 @@ export function useGuestRoomSession(
         }
 
         if (shouldApplyView(currentViewRef.current, view)) {
+          const currentView = currentViewRef.current;
           currentViewRef.current = view;
-          setRoom(toRoomView(view));
+          setRoom(view);
+          if (
+            view.phase === "waiting" ||
+            (currentView !== null &&
+              view.story?.title !== currentView.story?.title)
+          ) {
+            setOwnVote(null);
+          }
         }
       },
       onRejected: ({ requestId, message }) => {
@@ -292,6 +302,33 @@ export function useGuestRoomSession(
     };
   }, [attempt, confirmView, finishAttempt]);
 
+  const castVote = useCallback(
+    (value: VoteValue) => {
+      const participantId = participantIdRef.current;
+      const channel = channelRef.current;
+      if (
+        !confirmedRef.current ||
+        participantId === null ||
+        room === null ||
+        room.phase !== "voting" ||
+        channel === null
+      ) {
+        return;
+      }
+      const intent: RoomIntent = {
+        type: "VOTE_CAST",
+        requestId: createParticipantId(),
+        participantId,
+        value,
+      };
+      setOwnVote(value);
+      void channel.sendIntent(intent).catch((error: unknown) => {
+        console.error("Failed to send the Vote Intent.", error);
+      });
+    },
+    [room],
+  );
+
   useEffect(
     () => () => {
       if (timeoutRef.current !== null) {
@@ -303,11 +340,14 @@ export function useGuestRoomSession(
 
   return {
     room,
+    participantId: participantIdRef.current,
+    ownVote,
     joining,
     reconnecting,
     joinError,
     roomCodeInput,
     setRoomCodeInput,
     joinRoom,
+    castVote,
   };
 }
