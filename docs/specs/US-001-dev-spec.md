@@ -11,6 +11,8 @@ Implement room creation and joining as one client-side vertical slice. The host 
 
 ## 2. Data shapes
 
+**Channel name:** `room:${roomCode}` (for example `room:A7K9Q2`). One Supabase Realtime Broadcast channel per room, per D-003.
+
 ```ts
 export type ParticipantRole = "host" | "guest";
 
@@ -26,6 +28,10 @@ export interface Room {
   participants: Participant[];
 }
 
+// PublicView has the same fields as Room for US-001 because this story
+// has no vote state. The two types will diverge in US-002 when Room
+// gains a votes map that PublicView must hide before reveal. Keep them
+// separate now so US-002 does not require a type refactor.
 export interface PublicView {
   roomCode: string;
   hostParticipantId: string;
@@ -39,35 +45,25 @@ export interface JoinIntent {
   displayName: string;
 }
 
-export interface RoomIntentMessage {
-  event: "room:intent";
-  intent: JoinIntent;
-}
-
-export interface RoomStateMessage {
-  event: "room:state";
-  requestId?: string;
-  view: PublicView;
-}
-
 export type RoomRejectionCode =
   | "display-name-empty"
   | "display-name-too-long"
   | "display-name-invalid-characters"
   | "display-name-duplicate";
-
-export interface RoomRejectedMessage {
-  event: "room:rejected";
-  requestId: string;
-  code: RoomRejectionCode;
-  message: string;
-}
 ```
 
-- `room:intent` is a guest-to-host Broadcast event. For a refresh, the guest sends `join` with the existing per-tab `participantId`; it is an idempotent rejoin, not a second participant.
-- `room:state` is a host-to-guest event containing only `PublicView`. It never includes private vote data; this feature has no vote state.
-- `room:rejected` is a host-to-guest response for a rejected join intent. It carries the `requestId` so the guest can associate the rejection with the pending join.
-- Local room-code format errors are displayed locally and are not sent as messages.
+**Broadcast events and payloads.** The table below maps Supabase Broadcast event names to their payload shapes. Use `channel.send({ type: 'broadcast', event, payload })` to send; receive with `channel.on('broadcast', { event }, ({ payload }) => …)`. The types above describe the **payload** only; the event name is not a field inside the payload.
+
+| Broadcast event | Direction | Payload shape | Purpose |
+|---|---|---|---|
+| `room:intent` | guest → host | `{ intent: JoinIntent }` | Guest requests to join. |
+| `room:state` | host → all | `{ requestId?: string; view: PublicView }` | Host broadcasts the current public view after a state change. |
+| `room:rejected` | host → guest | `{ requestId: string; code: RoomRejectionCode; message: string }` | Host rejects a join intent with an error code and exact message. |
+
+- `room:intent`: for a refresh, the guest sends `join` with the existing per-tab `participantId`; it is an idempotent rejoin, not a second participant.
+- `room:state`: contains only `PublicView`. It never includes private vote data; this feature has no vote state.
+- `room:rejected`: carries `requestId` so the guest can associate the rejection with the pending join.
+- Local room-code format errors are displayed locally and are not sent as Broadcast messages.
 - Host creation is a local operation; it does not require a guest intent.
 
 ## 3. Pure logic
@@ -132,12 +128,14 @@ Rules:
 ## 4. Flows
 
 1. **Create room:** Validate the host's display name. Generate a room code and participant ID; create a `Room` with the host as its first participant. Save host identity and room snapshot in this tab's `sessionStorage`, open the room's Realtime Broadcast channel, then show the room code, share link, and participant list.
-2. **Join with code:** Normalize and validate room-code syntax locally. Normalize and pre-validate the guest display name locally; the host repeats validation in the specified order, including duplicate-name validation against its room. Restore or create the tab's participant ID, subscribe to that room's channel, then send `room:intent` with a unique request ID. The host validates/applies the intent, saves the updated room, and broadcasts `room:state`; on validation failure it sends `room:rejected`. The guest sends the intent only after the room channel reports `SUBSCRIBED`; the host processes intents one at a time in arrival order.
-3. **Join from share link (`?room=CODE`):** Read the `room` query parameter and prefill the room code field. Normalize its case; the guest enters only a display name and submits the join.
-4. **Guest refresh:** Restore the same participant ID, display name, and room code from per-tab `sessionStorage`. Rejoin with the same participant ID. The host treats it as the existing participant and broadcasts the current public view; do not add a second list entry or reject the guest as a duplicate.
+2. **Join with code:** Normalize and validate room-code syntax locally. Normalize and pre-validate the guest display name **format only** (empty, too long, invalid characters) — the guest does **not** check for duplicate names because it has no participant list before joining; duplicate detection happens only on the host, which repeats all validation in the specified order against its room. If local validation fails, show the error immediately and do not send a join intent. Otherwise, restore or create the tab's participant ID, subscribe to that room's channel (`room:${roomCode}`), then send `room:intent` with a unique request ID. The host validates/applies the intent, saves the updated room, and broadcasts `room:state`; on validation failure it sends `room:rejected`. The guest sends the intent only after the room channel reports `SUBSCRIBED`; the host processes intents one at a time in arrival order.
+3. **Join from share link (`?room=CODE`):** Read the `room` query parameter, prefill the room code field, and normalize its case. The guest enters only a display name and submits the join. After a successful join or on any navigation away from the home screen, remove the `?room=` query parameter from the browser URL (using `replaceState`) so that a later refresh follows the guest-refresh flow (flow 4), not this prefill flow again.
+4. **Guest refresh:** Restore the same participant ID, display name, and room code from per-tab `sessionStorage`. If `sessionStorage` has a stored session, use it — ignore a `?room=` query parameter that may still be in the URL. Rejoin with the same participant ID. The host treats it as the existing participant and broadcasts the current public view; do not add a second list entry or reject the guest as a duplicate.
 5. **Host refresh:** Restore the host identity and complete saved `Room` snapshot, including the room code and participant list, from per-tab `sessionStorage`. Reopen the same room channel and rebroadcast the restored public view. Do not create a new room or duplicate the host. If the saved snapshot is missing or unreadable, show the home screen (create and join forms) with no error; the room is gone (story A-11).
 6. **Five-second join timeout:** Start a 5,000 ms timeout when a well-formed join is submitted, covering channel subscription and the host reply. Clear it when a matching `room:state` or `room:rejected` response arrives. If no matching host response arrives before expiry, show exactly “Room not found or host is not reachable.” and do not add the guest locally. If the channel never reaches `SUBSCRIBED`, the same timeout message applies (story A-12).
 7. **Malformed room code:** Reject an empty or non-six-character code immediately, show exactly “Enter a 6-character room code.”, and send no join intent. A six-character code with characters outside `A–Z` and `0–9` is also rejected immediately, with exactly “Room code can only contain letters and digits.” and no join intent.
+8. **Synchronization guarantee (AC-3):** After the host broadcasts `room:state`, all subscribed tabs must show the same participant list within 2 seconds. Supabase Broadcast delivers under typical latency; the E2E test asserts this timing.
+9. **Channel cleanup:** Unsubscribe from the Broadcast channel when the React component that owns the subscription unmounts (effect cleanup). This prevents the host from receiving stale intents from an abandoned channel and avoids connection leaks toward the Supabase free-tier limit of 200 concurrent connections.
 
 ## 5. Files to create
 
@@ -202,6 +200,8 @@ These names are binding for page objects and tests. The home screen shows the cr
 | Host refresh and the saved room is missing or unreadable | Home screen (create and join forms), no error. | The room is gone; nothing is rebroadcast. |
 | Realtime connection cannot be established | “Room not found or host is not reachable.” after 5 seconds. | Do not add the guest locally. |
 | Same `participantId` rejoins with a different submitted name | No error; the stored display name stays. | Idempotent; participant list unchanged. |
+| Guest joins, then refreshes while `?room=CODE` is still in URL | sessionStorage identity takes priority; guest rejoins with stored participant ID, not as a new guest. | Restore flow (4) wins over prefill flow (3). |
+| Guest joins and participant list updates | Both host and guest tabs show the same participant list within 2 seconds (AC-3). | Supabase Broadcast delivery; E2E test asserts timing. |
 
 ## 8. Unit test plan
 
@@ -221,7 +221,7 @@ Use test names that include `US-001` and the matching test-case IDs once the Tes
 |---|---|---|
 | AC-1 | 3, 4.1, 5, 6, 8 | `src/domain/roomCode.ts`, `src/domain/roomReducer.ts`, `src/domain/displayName.ts`, `src/storage/roomSession.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/CreateRoomForm.tsx`, `src/features/room/RoomView.tsx`, `src/App.tsx` |
 | AC-2 | 2, 4.2, 5, 6 | `src/types/room.ts`, `src/domain/roomReducer.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/JoinRoomForm.tsx`, `src/features/room/RoomView.tsx` |
-| AC-3 | 4.2, 5, 8 | `src/domain/roomReducer.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/RoomView.tsx`, `tests/e2e/US-001-create-and-join-room.spec.ts` |
+| AC-3 | 4.2, 4.8, 5, 8 | `src/domain/roomReducer.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/RoomView.tsx`, `tests/e2e/US-001-create-and-join-room.spec.ts` |
 | AC-4 | 4.3, 5, 6, 8 | `src/domain/roomCode.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/JoinRoomForm.tsx`, `src/features/room/RoomView.tsx` |
 | AC-5 | 3, 4.1–4.2, 7–8 | `src/domain/displayName.ts`, `src/domain/roomReducer.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/CreateRoomForm.tsx`, `src/features/room/JoinRoomForm.tsx` |
 | AC-6 | 3, 4.2, 7–8 | `src/domain/displayName.ts`, `src/domain/roomReducer.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/JoinRoomForm.tsx` |
@@ -240,7 +240,7 @@ Use test names that include `US-001` and the matching test-case IDs once the Tes
 
 ## 10. Infrastructure needs
 
-- Supabase Realtime Broadcast channel per room — carry `room:intent`, `room:state`, and `room:rejected` messages.
+- Supabase Realtime Broadcast channel per room, named `room:${roomCode}` (for example `room:A7K9Q2`) — carry `room:intent`, `room:state`, and `room:rejected` events.
 - `VITE_SUPABASE_URL` — Supabase project URL used by `src/lib/supabaseClient.ts` to connect to Realtime.
 - `VITE_SUPABASE_ANON_KEY` — public client key used for the Realtime connection; no secret service-role key is required in the browser.
 - Browser `sessionStorage` — retain per-tab identity and the host room snapshot across refreshes.
