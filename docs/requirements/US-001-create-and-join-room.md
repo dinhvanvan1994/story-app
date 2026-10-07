@@ -162,3 +162,4 @@
 - **A-11:** If the host's saved room is missing or unreadable after a host refresh, the app shows the home screen (create and join forms) with no error, and the room is gone.
 - **A-12:** If the realtime connection cannot be established, the guest sees the same message as AC-7 after 5 seconds.
 - **A-13:** The host's room is shown only once the realtime connection is ready, so a guest who joins right after the code appears reaches the host. The host's first connection was measured at about 3 seconds in a spike, so the host waits up to 10 seconds (AC-19) instead of the guest's 5.
+- **A-14:** On guest refresh the guest sees a reconnecting state until the host replies. If no matching reply arrives within 5,000 ms, the app shows the home screen with the AC-7 message in `join-error` and deletes the guest session.

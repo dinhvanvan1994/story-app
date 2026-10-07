@@ -108,6 +108,10 @@ export function clearRoomSession(storage: Storage = sessionStorage): void {
   storage.removeItem(HOST_ROOM_STORAGE_KEY);
 }
 
+export function clearParticipantSession(storage: Storage = sessionStorage): void {
+  storage.removeItem(PARTICIPANT_STORAGE_KEY);
+}
+
 export function createParticipantId(): string {
   return crypto.randomUUID();
 }

@@ -44,6 +44,11 @@ describe("room Broadcast message guards", () => {
       }),
     ).toBe(false);
     expect(
+      isRoomIntentPayload({
+        intent: { ...intentPayload.intent, type: "vote" },
+      }),
+    ).toBe(false);
+    expect(
       isRoomStatePayload({
         view: { ...statePayload.view, revision: 0 },
       }),
@@ -51,6 +56,14 @@ describe("room Broadcast message guards", () => {
     expect(
       isRoomStatePayload({
         view: { ...statePayload.view, revision: 1.5 },
+      }),
+    ).toBe(false);
+    expect(
+      isRoomStatePayload({
+        view: {
+          ...statePayload.view,
+          participants: [{ id: "host-1", displayName: 123, role: "host" }],
+        },
       }),
     ).toBe(false);
     expect(
