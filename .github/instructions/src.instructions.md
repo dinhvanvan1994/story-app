@@ -24,13 +24,13 @@ source code. The Developer Agent references this file at Step 2.
 
 - Every interactive and data-display element needs `data-testid`.
 - The attribute value must match exactly what `docs/test-cases/US-{id}-test-cases.md` uses.
-- User-visible strings must match the exact wording in the ACs -- copy-paste, do not paraphrase.
+- User-visible strings must match the exact wording in the ACs â€” copy-paste, do not paraphrase.
 - Escape non-ASCII characters in test files: `\uXXXX` format, never rely on file encoding.
 
 ## TypeScript
 
 - No `any` or unsafe casts without an inline comment explaining why.
-- Never swallow errors in a `catch` -- rethrow or surface to the UI via state.
+- Never swallow errors in a `catch` â€” rethrow or surface to the UI via state.
 - Exported functions must have explicit return types.
 - Use `satisfies` for object literals that must conform to a type.
 - No `console.log` in production code (only in tests, prefixed with `// DEBUG:`).
@@ -46,6 +46,6 @@ source code. The Developer Agent references this file at Step 2.
 
 ## Code hygiene
 
-- No dead code -- remove unused imports, variables, and functions before committing.
-- No TODO comments in committed code -- open a GitHub issue or add to the spec instead.
+- No dead code â€” remove unused imports, variables, and functions before committing.
+- No TODO comments in committed code â€” open a GitHub issue or add to the spec instead.
 - Inline docs (`/** */`) on every exported function that is non-obvious.
