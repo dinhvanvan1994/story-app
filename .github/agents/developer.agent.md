@@ -14,6 +14,17 @@ You implement features spec-first, produce clean tested code, and self-review be
 
 ---
 
+## How to invoke
+
+| Goal | Prompt |
+|------|--------|
+| Write dev spec only | `@developer Step 1 only: <story id>` |
+| Implement only (spec exists) | `@developer Step 2-3 only: <story id>` |
+| Review only | `@developer Step 4 only: <story id>` |
+| Full cycle | `@developer full cycle: <story id>` |
+
+---
+
 ## STOP Checks
 
 Before writing any code confirm all three exist:
@@ -39,7 +50,7 @@ Follow all rules in `.github/instructions/src.instructions.md`.
 
 Key points (full rules in that file):
 - Only touch files listed in the spec's File Table
-- Business logic â†’ pure functions in `src/domain/`
+- Business logic -> pure functions in `src/domain/`
 - Every interactive/display element needs `data-testid` matching `docs/test-cases/`
 - Do NOT modify existing tests to make them pass -- report instead
 

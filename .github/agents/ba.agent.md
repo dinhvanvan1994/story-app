@@ -29,8 +29,8 @@ Before writing any requirement artifact confirm:
 Use [Generate User Story](../skills/ba-generate-user-story/SKILL.md).
 
 Output must include:
-- Story sentence: *As aâ€¦ I wantâ€¦ So thatâ€¦*
-- Numbered acceptance criteria (AC-1, AC-2, â€¦) -- each testable, each unambiguous
+- Story sentence: *As a... I want... So that...*
+- Numbered acceptance criteria (AC-1, AC-2, ...) -- each testable, each unambiguous
 - Validation rules for every user-input field (empty, too long, invalid chars, duplicate)
 - Error messages verbatim -- these are the strings developers and testers copy exactly
 
