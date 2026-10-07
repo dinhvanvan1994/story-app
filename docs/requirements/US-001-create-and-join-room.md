@@ -107,6 +107,11 @@
 **When** he attempts to join  
 **Then** he does not join a room and sees exactly: “Room code can only contain letters and digits.” without waiting 5 seconds.
 
+### AC-19 — Host cannot reach the realtime service
+**Given** Maya Chen enters the valid display name “Maya Chen” and the realtime connection cannot be established  
+**When** she creates the room and 10 seconds pass without a connection  
+**Then** no room is created, no room code is shown, and she sees exactly: “Could not connect to the realtime service. Try again.” in the create form.
+
 ## 3. Field definitions
 
 | Field | Type | Min / max length | Allowed characters | Uniqueness | Error message |
@@ -132,6 +137,7 @@
 | Host refreshes the page | AC-16. |
 | Empty or malformed room code (wrong length) | AC-17. |
 | Room code of 6 characters with invalid characters | AC-18. |
+| Host cannot connect to the realtime service | AC-19. |
 | Display name typed with combining marks | AC-11. |
 
 ## 5. Traceability
@@ -147,7 +153,7 @@
 - **A-2:** A room code is exactly 6 characters and uses uppercase ASCII letters and digits; it is generated randomly, and collisions are treated as negligible because no room registry exists. The brief says only “short code”.
 - **A-3:** Display names are normalized to Unicode NFC and trimmed at the start and end; they are 1–24 Unicode code points counted after that, permit Unicode letters, combining marks, digits, the ordinary space (U+0020), hyphens, and apostrophes (any other whitespace is invalid), and are compared with `toLowerCase()` after normalization and trimming. These constraints are not stated in the brief.
 - **A-4:** A share link contains the room code as the `room` query parameter, for example `https://example.test/?room=A7K9Q2`; the URL format is not stated in the brief.
-- **A-5:** Exact validation and connection error messages are as written in AC-5–AC-7, AC-10, AC-12, AC-14, AC-17 and AC-18; the brief does not define message text.
+- **A-5:** Exact validation and connection error messages are as written in AC-5–AC-7, AC-10, AC-12, AC-14 and AC-17–AC-19; the brief does not define message text.
 - **A-6:** An active room is a room whose host tab is open. If no host reply arrives within 5 seconds, the guest sees the same message whether the code is unknown or the host is unreachable; D-003 means there is no room registry to distinguish those cases.
 - **A-7:** A guest who closes the tab is not removed from the participant list in the MVP; removal behavior is not specified in the brief.
 - **A-8:** A guest refresh retains the same tab identity and display name without creating a duplicate participant, per D-006.
@@ -155,3 +161,4 @@
 - **A-10:** A malformed room code (empty, not exactly 6 characters after uppercasing, or containing characters outside `A–Z` and `0–9`) is rejected locally and immediately; no host lookup or 5-second wait happens.
 - **A-11:** If the host's saved room is missing or unreadable after a host refresh, the app shows the home screen (create and join forms) with no error, and the room is gone.
 - **A-12:** If the realtime connection cannot be established, the guest sees the same message as AC-7 after 5 seconds.
+- **A-13:** The host's room is shown only once the realtime connection is ready, so a guest who joins right after the code appears reaches the host. The host's first connection was measured at about 3 seconds in a spike, so the host waits up to 10 seconds (AC-19) instead of the guest's 5.

@@ -3,7 +3,7 @@
 **Story:** `docs/requirements/US-001-create-and-join-room.md`  
 **Date:** 2026-10-07  
 **Status:** In Review  
-**Decisions referenced:** D-001, D-002, D-003, D-004, D-005, D-006, D-009
+**Decisions referenced:** D-001, D-002, D-003, D-004, D-005, D-006, D-009, D-011, D-012, D-013
 
 ## 1. Approach
 
@@ -26,6 +26,7 @@ export interface Room {
   code: string;
   hostParticipantId: string;
   participants: Participant[];
+  revision: number; // starts at 1; +1 for every accepted change
 }
 
 // PublicView has the same fields as Room for US-001 because this story
@@ -36,6 +37,7 @@ export interface PublicView {
   roomCode: string;
   hostParticipantId: string;
   participants: Participant[];
+  revision: number;
 }
 
 export interface JoinIntent {
@@ -68,7 +70,7 @@ export type RoomRejectionCode =
 | `story-app:host-room` | JSON `Room` snapshot | host only |
 
 - `room:intent`: for a refresh, the guest sends `join` with the existing per-tab `participantId`; it is an idempotent rejoin, not a second participant.
-- `room:state`: contains only `PublicView`. It never includes private vote data; this feature has no vote state.
+- `room:state`: contains only `PublicView`. It never includes private vote data; this feature has no vote state. Broadcast does not guarantee message order (spike check C5 received 1,2,3,4,5,6,9,7,8,10), so a guest applies a view only when its `revision` is newer than the one it holds (see `shouldApplyView`).
 - `room:rejected`: carries `requestId` so the guest can associate the rejection with the pending join.
 - Local room-code format errors are displayed locally and are not sent as Broadcast messages.
 - Host creation is a local operation; it does not require a guest intent.
@@ -122,6 +124,13 @@ export function createPublicView(room: Room): PublicView;
 export function applyJoinIntent(room: Room, intent: JoinIntent):
   | { accepted: true; room: Room }
   | { accepted: false; code: RoomRejectionCode; message: string };
+export function shouldApplyView(
+  current: PublicView | null,
+  incoming: PublicView
+): boolean;
+
+export const HOST_CONNECTION_ERROR =
+  "Could not connect to the realtime service. Try again." as const;
 ```
 
 Rules:
@@ -131,17 +140,19 @@ Rules:
 - Reject a six-character code containing characters outside `A–Z` and `0–9` locally as `invalid-characters` with exactly “Room code can only contain letters and digits.” immediately, with no 5-second wait (story AC-18).
 - Generate a random six-character code from `A–Z` and `0–9`. There is no room registry or collision lookup; collisions are treated as negligible, per US-001 assumption A-2.
 - `applyJoinIntent` validates the name in the order above, then adds a new guest or returns the existing participant unchanged for the same `participantId`. A duplicate name belonging to another participant is rejected. For an existing `participantId` with a different submitted name, keep the stored display name and accept without error (idempotent; there is no rename in the MVP).
+- Revision: `createRoom` returns `revision: 1`. `applyJoinIntent` adds 1 to `revision` when it adds a new participant. A rejected intent and an idempotent rejoin leave the room, including `revision`, unchanged. `createPublicView` copies `revision`.
+- `shouldApplyView(current, incoming)` returns `true` when `current` is `null` (first view, including after a guest refresh) or `incoming.revision > current.revision`; otherwise `false` (stale or repeated view).
 
 ## 4. Flows
 
-1. **Create room:** Validate the host's display name. Generate a room code and participant ID; create a `Room` with the host as its first participant. Save host identity and room snapshot in this tab's `sessionStorage`, open the room's Realtime Broadcast channel, then show the room code, share link, and participant list.
-2. **Join with code:** Normalize and validate room-code syntax locally. Normalize and pre-validate the guest display name **format only** (empty, too long, invalid characters) — the guest does **not** check for duplicate names because it has no participant list before joining; duplicate detection happens only on the host, which repeats all validation in the specified order against its room. If local validation fails, show the error immediately and do not send a join intent. Otherwise, restore or create the tab's participant ID, subscribe to that room's channel (`room:${roomCode}`), then send `room:intent` with a unique request ID. The host validates/applies the intent, saves the updated room, and broadcasts `room:state`; on validation failure it sends `room:rejected`. The guest sends the intent only after the room channel reports `SUBSCRIBED`; the host processes intents one at a time in arrival order.
+1. **Create room:** Validate the host's display name. Generate a room code and participant ID; create a `Room` with the host as its first participant. Open the room's Realtime Broadcast channel and keep the create form in a "connecting" state until the channel reports `SUBSCRIBED` (the first connection took about 2.7 seconds in the spike). Only then save host identity and the room snapshot in this tab's `sessionStorage` and show `room-view` with the room code, share link, and participant list; this way a guest who joins right after the code appears reaches a subscribed host (story A-13). If `SUBSCRIBED` is not reached within 10,000 ms, remove the channel, save nothing, create no room, and show exactly `HOST_CONNECTION_ERROR` in `create-error` (story AC-19).
+2. **Join with code:** Normalize and validate room-code syntax locally. Normalize and pre-validate the guest display name **format only** (empty, too long, invalid characters) — the guest does **not** check for duplicate names because it has no participant list before joining; duplicate detection happens only on the host, which repeats all validation in the specified order against its room. If local validation fails, show the error immediately and do not send a join intent. Otherwise, restore or create the tab's participant ID, subscribe to that room's channel (`room:${roomCode}`), then send `room:intent` with a unique request ID. The host validates/applies the intent, saves the updated room, and broadcasts `room:state`; on validation failure it sends `room:rejected`. The guest applies each received `room:state` view only if `shouldApplyView(currentView, view)` is true. The guest sends the intent only after the room channel reports `SUBSCRIBED`; the host processes intents one at a time in arrival order.
 3. **Join from share link (`?room=CODE`):** Read the `room` query parameter, prefill the room code field, and normalize its case. The guest enters only a display name and submits the join. After a successful join or on any navigation away from the home screen, remove the `?room=` query parameter from the browser URL (using `replaceState`) so that a later refresh follows the guest-refresh flow (flow 4), not this prefill flow again.
 4. **Guest refresh:** On load, read `story-app:participant`; `role: "guest"` means this flow, `role: "host"` means flow 5, no record means the home screen. Restore the same participant ID, display name, and room code from it. If a stored session exists, use it — ignore a `?room=` query parameter that may still be in the URL. Rejoin with the same participant ID. The host treats it as the existing participant and broadcasts the current public view; do not add a second list entry or reject the guest as a duplicate.
 5. **Host refresh:** Restore the host identity and complete saved `Room` snapshot, including the room code and participant list, from per-tab `sessionStorage`. Reopen the same room channel and rebroadcast the restored public view. Do not create a new room or duplicate the host. If `story-app:host-room` is missing or unreadable, delete both storage keys and show the home screen (create and join forms) with no error and no join attempt; the room is gone (story A-11).
 6. **Five-second join timeout:** Start a 5,000 ms timeout when a well-formed join is submitted, covering channel subscription and the host reply. Clear it when a matching `room:state` or `room:rejected` response arrives. If no matching host response arrives before expiry, show exactly “Room not found or host is not reachable.” and do not add the guest locally. If the channel never reaches `SUBSCRIBED`, the same timeout message applies (story A-12).
 7. **Malformed room code:** Reject an empty or non-six-character code immediately, show exactly “Enter a 6-character room code.”, and send no join intent. A six-character code with characters outside `A–Z` and `0–9` is also rejected immediately, with exactly “Room code can only contain letters and digits.” and no join intent.
-8. **Synchronization guarantee (AC-3):** After the host broadcasts `room:state`, all subscribed tabs must show the same participant list within 2 seconds. Supabase Broadcast delivers under typical latency; the E2E test asserts this timing.
+8. **Synchronization guarantee (AC-3):** After the host broadcasts `room:state`, all subscribed tabs must show the same participant list within 2 seconds. The spike measured a guest-host round trip of 178 to 238 ms; the E2E test asserts the 2-second limit. Because messages can arrive out of order, guests apply views by `revision` (flow 2), so two quick joins never leave a guest on an older list.
 9. **Channel cleanup:** Unsubscribe from the Broadcast channel when the React component that owns the subscription unmounts (effect cleanup). This prevents the host from receiving stale intents from an abandoned channel and avoids connection leaks toward the Supabase free-tier limit of 200 concurrent connections.
 
 ## 5. Files to create
@@ -150,23 +161,23 @@ Ordered by dependency. Owner says which agent writes the file.
 
 | Order | Path | Owner | Purpose | ACs served |
 |---|---|---|---|---|
-| 1 | `src/types/room.ts` | Developer | Define participant, room, public-view, intent, state, and rejection message types. | AC-1–AC-18 |
+| 1 | `src/types/room.ts` | Developer | Define participant, room, public-view, intent, state, and rejection message types. | AC-1–AC-19 |
 | 2 | `src/domain/displayName.ts` | Developer | Normalize and validate host and guest display names. | AC-1, AC-5–AC-6, AC-9–AC-14 |
 | 3 | `src/domain/displayName.test.ts` | Developer | Unit tests for display-name rules and deterministic errors. | AC-1, AC-5–AC-6, AC-9–AC-14 |
 | 4 | `src/domain/roomCode.ts` | Developer | Generate, normalize, and validate room codes and build the share link. | AC-1, AC-4, AC-7–AC-8, AC-17–AC-18 |
 | 5 | `src/domain/roomCode.test.ts` | Developer | Unit tests for code generation format, normalization, and local validation. | AC-1, AC-4, AC-7–AC-8, AC-17–AC-18 |
-| 6 | `src/domain/roomReducer.ts` | Developer | Purely create room state, apply join intents, enforce duplicate identity and name rules, and derive `PublicView`. | AC-1–AC-3, AC-5–AC-6, AC-14–AC-16 |
-| 7 | `src/domain/roomReducer.test.ts` | Developer | Unit tests for room creation, join and rejoin, duplicate rejection, and public view. | AC-1–AC-3, AC-5–AC-6, AC-14–AC-16 |
+| 6 | `src/domain/roomReducer.ts` | Developer | Purely create room state, apply join intents, enforce duplicate identity and name rules, derive `PublicView`, and decide with `shouldApplyView` whether a received view is newer. | AC-1–AC-3, AC-5–AC-6, AC-14–AC-16 |
+| 7 | `src/domain/roomReducer.test.ts` | Developer | Unit tests for room creation, join and rejoin, duplicate rejection, public view, revision counting, and `shouldApplyView`. | AC-1–AC-3, AC-5–AC-6, AC-14–AC-16 |
 | 8 | `src/storage/roomSession.ts` | Developer | Read and write the host room snapshot and per-tab participant identity using `sessionStorage`. | AC-15–AC-16 |
 | 9 | `src/lib/supabaseClient.ts` | Developer | Create the single Supabase client from `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`. | AC-2–AC-4, AC-7, AC-15–AC-16 |
-| 10 | `src/realtime/roomChannel.ts` | Developer | Exchange the named Broadcast messages on one channel per room, per D-003, using the shared client. | AC-2–AC-4, AC-7, AC-15–AC-16 |
-| 11 | `src/features/room/useRoomSession.ts` | Developer | Coordinate create and join flows, per-tab restore, correlated replies, and the 5-second join timeout. | AC-1–AC-8, AC-15–AC-18 |
-| 12 | `src/features/room/CreateRoomForm.tsx` | Developer | Collect the host display name and start room creation. | AC-1, AC-5 |
+| 10 | `src/realtime/roomChannel.ts` | Developer | Exchange the named Broadcast messages on one channel per room, per D-003, using the shared client; report when the channel is `SUBSCRIBED`. | AC-1–AC-4, AC-7, AC-15–AC-16, AC-19 |
+| 11 | `src/features/room/useRoomSession.ts` | Developer | Coordinate create and join flows, per-tab restore, correlated replies, the 5-second join timeout, the 10-second host connection timeout, and applying views by revision. | AC-1–AC-8, AC-15–AC-19 |
+| 12 | `src/features/room/CreateRoomForm.tsx` | Developer | Collect the host display name, show the connecting state, and show the create error. | AC-1, AC-5, AC-19 |
 | 13 | `src/features/room/JoinRoomForm.tsx` | Developer | Collect a guest display name and room code, including share-link prefill. | AC-2, AC-4–AC-14, AC-17–AC-18 |
 | 14 | `src/features/room/RoomView.tsx` | Developer | Show the room code, share link, and live participant list. | AC-1–AC-3, AC-7, AC-15–AC-16 |
-| 15 | `src/App.tsx` | Developer | Compose the home screen (create and join forms side by side) and the room view. | AC-1–AC-18 |
-| 16 | `tests/page-objects/RoomPage.ts` | Test agent | Page-object interactions using the binding test IDs below. | AC-1–AC-18 |
-| 17 | `tests/e2e/US-001-create-and-join-room.spec.ts` | Test agent | Cross-browser room creation, joining, refresh, validation, and synchronization. | AC-1–AC-18 |
+| 15 | `src/App.tsx` | Developer | Compose the home screen (create and join forms side by side) and the room view. | AC-1–AC-19 |
+| 16 | `tests/page-objects/RoomPage.ts` | Test agent | Page-object interactions using the binding test IDs below. | AC-1–AC-19 |
+| 17 | `tests/e2e/US-001-create-and-join-room.spec.ts` | Test agent | Cross-browser room creation, joining, refresh, validation, and synchronization. | AC-1–AC-19 |
 
 Keep validation and state transitions in the plain functions under `src/domain/`; components and session orchestration call those functions rather than duplicating business rules.
 
@@ -209,6 +220,9 @@ These names are binding for page objects and tests. The home screen shows the cr
 | Same `participantId` rejoins with a different submitted name | No error; the stored display name stays. | Idempotent; participant list unchanged. |
 | Guest joins, then refreshes while `?room=CODE` is still in URL | sessionStorage identity takes priority; guest rejoins with stored participant ID, not as a new guest. | Restore flow (4) wins over prefill flow (3). |
 | Guest joins and participant list updates | Both host and guest tabs show the same participant list within 2 seconds (AC-3). | Supabase Broadcast delivery; E2E test asserts timing. |
+| Host cannot reach the realtime service (no `SUBSCRIBED` within 10 seconds) | “Could not connect to the realtime service. Try again.” in `create-error` (AC-19). | No room created; nothing saved to `sessionStorage`; channel removed. |
+| Guest receives an older or repeated `room:state` (out-of-order delivery) | The list does not go back to an older state. | The view is ignored when `revision` is not greater than the current one. |
+| Guest joins right after the host's room appears | Join succeeds; no timeout error. | The host shows the room only after its channel is `SUBSCRIBED` (flow 1). |
 
 ## 8. Unit test plan
 
@@ -218,7 +232,8 @@ These names are binding for page objects and tests. The home screen shows the cr
 | `validateDisplayName` | Empty or whitespace-only; 24 code points accepted; 25 rejected; Unicode and combining marks accepted; other whitespace (for example U+00A0, tab) rejected as invalid, including at the start or end; invalid markup rejected; a 25-character name containing markup returns the too-long error (length is checked before characters); exact-case and case-only duplicate; same-ID rejoin; assert validation-order messages. | AC-1, AC-5–AC-6, AC-9–AC-14 |
 | `generateRoomCode` | Output has exactly six characters, all from `A–Z` and `0–9`. | AC-1 |
 | `normalizeRoomCode` / `validateRoomCode` / `createShareLink` | Lowercase becomes uppercase; six valid characters accepted; empty, short, and long values rejected with “Enter a 6-character room code.”; six characters with an invalid character (`A7K9Q!`) rejected with “Room code can only contain letters and digits.”; share link contains the code as `?room=CODE`. | AC-4, AC-7–AC-8, AC-17–AC-18 |
-| `applyJoinIntent` / `createPublicView` | Host creation; guest addition; duplicate rejection; same-ID rejoin without duplicate; same-ID rejoin with a different submitted name keeps the stored name; public view contains participant list and no vote fields. | AC-1–AC-3, AC-5–AC-6, AC-14–AC-16 |
+| `createRoom` / `applyJoinIntent` / `createPublicView` | Host creation with `revision` 1; guest addition adds 1 to `revision`; duplicate rejection leaves the room (and `revision`) unchanged; same-ID rejoin without duplicate and without a `revision` change; same-ID rejoin with a different submitted name keeps the stored name; public view contains participant list and `revision`, and no vote fields. | AC-1–AC-3, AC-5–AC-6, AC-14–AC-16 |
+| `shouldApplyView` | `null` current view accepts any view; revision 3 over 2 accepted; revision 2 over 3 rejected; same revision rejected. | AC-3 |
 
 Use test names that include `US-001` and the matching test-case IDs once the Test agent creates `docs/test-cases/US-001-test-cases.md`.
 
@@ -226,9 +241,9 @@ Use test names that include `US-001` and the matching test-case IDs once the Tes
 
 | AC | Spec section | Implementing files |
 |---|---|---|
-| AC-1 | 3, 4.1, 5, 6, 8 | `src/domain/roomCode.ts`, `src/domain/roomReducer.ts`, `src/domain/displayName.ts`, `src/storage/roomSession.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/CreateRoomForm.tsx`, `src/features/room/RoomView.tsx`, `src/App.tsx` |
+| AC-1 | 3, 4.1, 5, 6, 8 | `src/domain/roomCode.ts`, `src/domain/roomReducer.ts`, `src/domain/displayName.ts`, `src/storage/roomSession.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/CreateRoomForm.tsx`, `src/features/room/RoomView.tsx`, `src/App.tsx` |
 | AC-2 | 2, 4.2, 5, 6 | `src/types/room.ts`, `src/domain/roomReducer.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/JoinRoomForm.tsx`, `src/features/room/RoomView.tsx` |
-| AC-3 | 4.2, 4.8, 5, 8 | `src/domain/roomReducer.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/RoomView.tsx`, `tests/e2e/US-001-create-and-join-room.spec.ts` |
+| AC-3 | 2, 3, 4.2, 4.8, 5, 8 | `src/domain/roomReducer.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/RoomView.tsx`, `tests/e2e/US-001-create-and-join-room.spec.ts` |
 | AC-4 | 4.3, 5, 6, 8 | `src/domain/roomCode.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/JoinRoomForm.tsx`, `src/features/room/RoomView.tsx` |
 | AC-5 | 3, 4.1–4.2, 7–8 | `src/domain/displayName.ts`, `src/domain/roomReducer.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/CreateRoomForm.tsx`, `src/features/room/JoinRoomForm.tsx` |
 | AC-6 | 3, 4.2, 7–8 | `src/domain/displayName.ts`, `src/domain/roomReducer.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/JoinRoomForm.tsx` |
@@ -244,6 +259,7 @@ Use test names that include `US-001` and the matching test-case IDs once the Tes
 | AC-16 | 2, 4.5, 5, 7–8 | `src/storage/roomSession.ts`, `src/domain/roomReducer.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/RoomView.tsx` |
 | AC-17 | 3, 4.7, 7–8 | `src/domain/roomCode.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/JoinRoomForm.tsx` |
 | AC-18 | 3, 4.7, 7–8 | `src/domain/roomCode.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/JoinRoomForm.tsx` |
+| AC-19 | 3, 4.1, 5, 7 | `src/types/room.ts`, `src/realtime/roomChannel.ts`, `src/features/room/useRoomSession.ts`, `src/features/room/CreateRoomForm.tsx` |
 
 ## 10. Infrastructure needs
 

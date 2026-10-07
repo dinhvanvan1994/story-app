@@ -14,6 +14,9 @@ All entries are accepted. Specs and code must follow them. To change one, add a 
 | D-008 | Point scale | Fixed: 0, 1, 2, 3, 5, 8, 13, 21, `?` | Brief; custom scales are out of scope. | Configurable scale |
 | D-009 | Testing | Vitest (unit), Playwright (E2E) | Vitest shares the Vite config; Playwright runs Chrome and Firefox, needed for success criteria 1 and 5. | Jest; Cypress |
 | D-010 | Hosting | Vercel | Free tier, public URL for criterion 5, deploys from Git. | Self-hosting |
+| D-011 | Message ordering | Every public view carries a `revision` (starts at 1, +1 per accepted change on the host); a guest applies a view only if it holds none or the incoming revision is higher | Spike check C5: Broadcast does not guarantee order (received 1,2,3,4,5,6,9,7,8,10). | Rely on arrival order; sequence numbers per sender |
+| D-012 | Connection readiness and timeouts | Host shows the room only after its channel is `SUBSCRIBED` and gives up after 10 s (AC-19); guest gives up after 5 s (AC-7) | Spike check C1: host first connection took 2669 ms, guests 427–568 ms; a room shown too early would miss a guest's first intent. | Show the room immediately; same 5 s timeout for the host |
+| D-013 | Channel and event names | Channel `room:${roomCode}`; events `room:intent` (guest to host), `room:state` (host to all), `room:rejected` (host to guest) | One channel per room (D-003); event names state direction and purpose. | One generic event with a type field |
 
 ## Open questions
 None.
