@@ -62,7 +62,7 @@ Report verbatim output of both commands.
 
 Use the checklist at `docs/reviews/_checklist.md`.
 Save review output to `docs/reviews/US-{id}-dev-review.md`.
-Do not hand off with any âŒ items.
+Do not hand off with any [FAIL] items.
 
 ---
 

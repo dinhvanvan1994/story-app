@@ -63,20 +63,20 @@ Save output to `docs/reviews/US-{id}-ba-review.md`.
 ```
 ## BA Review -- US-{id}
 
-### Completeness  âœ… / âŒ
+### Completeness  [PASS] / [FAIL]
 ...
 
-### Testability  âœ… / âŒ
+### Testability  [PASS] / [FAIL]
 ...
 
-### Traceability  âœ… / âŒ
+### Traceability  [PASS] / [FAIL]
 ...
 
 ### Summary
 Ready for dev spec / Blocked on: <items>
 ```
 
-Do not hand off with any âŒ items.
+Do not hand off with any [FAIL] items.
 
 ---
 
