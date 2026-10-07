@@ -1,59 +1,56 @@
 ---
 name: create-development-plan
-description: Use when you create development plan for a user story.
+description: Use when you create the dev spec (development plan) for a user story. Output goes to docs/specs/US-<id>-dev-spec.md.
 ---
 
 # Planning and Clarifying
 
 ## Overview
 
-Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI.
+Write a self-contained dev spec for one user story, assuming the engineer has zero context for this codebase. Document what they need: files to create or touch, data shapes, flows, UI test ids, edge cases, tests, and how each acceptance criterion is covered. Break the work into bite-sized, ordered tasks. DRY. YAGNI.
 
-Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
+Assume a skilled developer who does not know our toolset or domain and does not know good test design. Be less prescriptive about actual code, more focused on what needs to be done.
 
-Don't go into too much detail about the implementation. Be less prescriptive about actual code, more focused on what needs to be done.
-
-Announce at start: "I'm using the writing-plans skill to create the implementation plan."
+Announce at start: "I'm using the create-development-plan skill to write the dev spec for <story id>."
 
 ## The Planning Process
 
-**Do NOT write code during planning.**
+**Do NOT write production code during planning.** Type and function signatures are allowed; implementations are not.
 
-### Step 1: Clarify the unclear points
+### Step 1: Read the context first
 
-Interview the user relentlessly until you reach a shared understanding. Map this as a **design tree**: every decision branches into the decisions that hang off it.
+Before asking anything, read:
+- the user story in `docs/requirements/US-<id>-*.md` (acceptance criteria, field definitions, assumptions)
+- `docs/knowledge/decisions.md` (accepted decisions; cite them by ID, for example "per D-004", and never contradict them)
+- `docs/knowledge/glossary.md` (use its terms exactly)
 
-Work the tree in **rounds**. The **frontier** is every decision whose prerequisites are already settled — the questions you can ask _now_ without guessing at answers you haven't heard yet. Ask the whole frontier in one round: number each question and give your recommended answer. Then wait for the user's answers before the next round.
+### Step 2: Clarify only what is still unclear
 
-Each question should be formatted like so:
+Ask only about decisions that the story, the decisions file and the glossary do not settle. Map them as a **design tree**: every decision branches into the decisions that hang off it. Ask the whole frontier (every question whose prerequisites are settled) in **one round**, numbered, each with your recommended answer:
 
 ```
-❓ **Q1** - **<question title>**: <question body, might be multiple paragraphs, including multiple choices>
+❓ **Q1** - **<question title>**: <question body, may include multiple choices>
 
 ➡️ <your recommended answer>
 ```
 
-Each round the user answers reshapes the tree — settled decisions push the frontier outward and unblock questions that depended on them. Recompute the frontier and ask the next round. A question whose answer depends on another question still open in this round belongs to a _later_ round, not this one.
+Finding _facts_ (files, tools, versions) is your job, never the user's: look them up yourself. The _decisions_ are the user's.
 
-Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (filesystem, tools, etc.), dispatch a sub-agent to find it — don't ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for the sub-agent to report — ask the rest of the frontier now. The _decisions_ are the user's — put each to them and wait.
+If the user does not answer, proceed with your recommended answers and list each one under "Open questions" in the spec. Never decide silently. If a task would need "ask the user", the design tree is not clear enough yet.
 
-The session is done when the frontier is empty: every branch of the design tree visited, nothing left silently assumed. Do not act on it until the user confirms you have reached a shared understanding.
+### Step 3: Plan
 
-Write the plan in a way that is **self-contained**: the engineer should be able to implement it without asking you any questions. If you find yourself writing "ask the user" in a task, that means you haven't clarified the design tree enough yet.
-
-### Step 2: Enter Plan Mode
-
-- Read the user story and relevant codebase sections
-- Identify existing patterns and conventions
-- Identify the tasks needed to implement the user story
+- Identify existing patterns and conventions in the codebase
+- Identify the tasks needed to implement the story, ordered by dependency
 - Note risks and unknowns
 
 ## Output Files
 
-The output is a plan document saved to: `docs/development-plans/YYYY-MM-DD-<userstorynumber>.md`
+The output is a dev spec saved to: `docs/specs/US-<id>-dev-spec.md` (for example `docs/specs/US-001-dev-spec.md`).
 
-Create the `docs/development-plans` directory if it does not exist.
+- Do NOT use `docs/development-plans/` and do NOT add a date to the file name.
+- The `docs/specs/` directory already exists. Create no other file.
 
-## Plan Document Template
+## Spec Template
 
-Use the template at [assets/plan-template.md](assets/plan-template.md).
+Use the template at [assets/plan-template.md](assets/plan-template.md). Keep every section, in order. Keep the spec under about 250 lines. Every acceptance criterion of the story must appear in the traceability table.

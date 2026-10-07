@@ -68,7 +68,7 @@
 **Then** the guest is not added to the participant list and sees exactly: “Display name must be 24 characters or fewer.”
 
 ### AC-11 — Unicode display name is accepted
-**Given** a guest enters the display name “Nguyễn Văn” for room `A7K9Q2`, once as precomposed characters and once typed as base letters plus separate accent marks (`Nguyễn Văn`)  
+**Given** a guest enters the display name “Nguyễn Văn” for room `A7K9Q2`, once as precomposed characters, and once typed as base letters plus separate accent marks (the letter e followed by the marks U+0302 and U+0303, and the letter a followed by the mark U+0306)  
 **When** the guest attempts to join  
 **Then** both inputs are accepted, and the participant list shows “Nguyễn Văn” in each case.
 
@@ -102,12 +102,17 @@
 **When** he attempts to join  
 **Then** he does not join a room and sees exactly: “Enter a 6-character room code.” without waiting 5 seconds.
 
+### AC-18 — Room code with invalid characters is rejected immediately
+**Given** Noah Patel enters the 6-character room code `A7K9Q!`  
+**When** he attempts to join  
+**Then** he does not join a room and sees exactly: “Room code can only contain letters and digits.” without waiting 5 seconds.
+
 ## 3. Field definitions
 
 | Field | Type | Min / max length | Allowed characters | Uniqueness | Error message |
 |---|---|---:|---|---|---|
-| Display name | Text | 1 / 24 characters, counted after normalization and trimming | Unicode letters, combining marks, digits, spaces, hyphens, and apostrophes; the value is normalized to Unicode NFC, then leading and trailing spaces are trimmed, before validation. | Unique within a room, case-insensitively after trimming. | Empty: “Enter a display name.” Too long: “Display name must be 24 characters or fewer.” Invalid characters: “Display name contains invalid characters.” Duplicate: “That display name is already used in this room.” |
-| Room code | Text | Exactly 6 characters | Uppercase ASCII letters `A–Z` and digits `0–9`; lowercase input is converted to uppercase. | Randomly generated; collisions are treated as negligible because no room registry exists. | Empty or not exactly 6 characters: “Enter a 6-character room code.” (immediate). Well-formed code with no host reply within 5 seconds: “Room not found or host is not reachable.” |
+| Display name | Text | 1 / 24 Unicode code points, counted after NFC normalization and trimming | Unicode letters, combining marks, digits, the ordinary space (U+0020) only, hyphens, and apostrophes; any other whitespace character is invalid; the value is normalized to Unicode NFC, then leading and trailing spaces are trimmed, before validation. | Unique within a room; compared with `toLowerCase()` after NFC normalization and trimming. | Empty: “Enter a display name.” Too long: “Display name must be 24 characters or fewer.” Invalid characters: “Display name contains invalid characters.” Duplicate: “That display name is already used in this room.” |
+| Room code | Text | Exactly 6 characters | Uppercase ASCII letters `A–Z` and digits `0–9`; lowercase input is converted to uppercase. | Randomly generated; collisions are treated as negligible because no room registry exists. | Empty or not exactly 6 characters: “Enter a 6-character room code.” (immediate). Exactly 6 characters with a character outside `A–Z` and `0–9`: “Room code can only contain letters and digits.” (immediate). Well-formed code with no host reply within 5 seconds: “Room not found or host is not reachable.” |
 
 ## 4. Error and edge cases
 
@@ -126,6 +131,7 @@
 | Guest refreshes the page | AC-15. |
 | Host refreshes the page | AC-16. |
 | Empty or malformed room code (wrong length) | AC-17. |
+| Room code of 6 characters with invalid characters | AC-18. |
 | Display name typed with combining marks | AC-11. |
 
 ## 5. Traceability
@@ -139,11 +145,13 @@
 
 - **A-1:** The host enters a display name when creating a room, so the host can appear in the participant list; the brief does not specify this input.
 - **A-2:** A room code is exactly 6 characters and uses uppercase ASCII letters and digits; it is generated randomly, and collisions are treated as negligible because no room registry exists. The brief says only “short code”.
-- **A-3:** Display names are normalized to Unicode NFC and trimmed at the start and end; they are 1–24 characters counted after that, permit Unicode letters, combining marks, digits, spaces, hyphens, and apostrophes, and are compared case-insensitively. These constraints are not stated in the brief.
+- **A-3:** Display names are normalized to Unicode NFC and trimmed at the start and end; they are 1–24 Unicode code points counted after that, permit Unicode letters, combining marks, digits, the ordinary space (U+0020), hyphens, and apostrophes (any other whitespace is invalid), and are compared with `toLowerCase()` after normalization and trimming. These constraints are not stated in the brief.
 - **A-4:** A share link contains the room code as the `room` query parameter, for example `https://example.test/?room=A7K9Q2`; the URL format is not stated in the brief.
-- **A-5:** Exact validation and connection error messages are as written in AC-5–AC-7, AC-10, AC-12, AC-14 and AC-17; the brief does not define message text.
+- **A-5:** Exact validation and connection error messages are as written in AC-5–AC-7, AC-10, AC-12, AC-14, AC-17 and AC-18; the brief does not define message text.
 - **A-6:** An active room is a room whose host tab is open. If no host reply arrives within 5 seconds, the guest sees the same message whether the code is unknown or the host is unreachable; D-003 means there is no room registry to distinguish those cases.
 - **A-7:** A guest who closes the tab is not removed from the participant list in the MVP; removal behavior is not specified in the brief.
 - **A-8:** A guest refresh retains the same tab identity and display name without creating a duplicate participant, per D-006.
 - **A-9:** The host identity is also kept per tab (D-006), so a host refresh restores the same room (same code, same participants) instead of ending it. Closing the host tab still ends the room, as stated in the brief. This is not host migration, which stays out of scope.
-- **A-10:** A malformed room code (empty or not exactly 6 characters after uppercasing) is rejected locally and immediately; no host lookup or 5-second wait happens.
+- **A-10:** A malformed room code (empty, not exactly 6 characters after uppercasing, or containing characters outside `A–Z` and `0–9`) is rejected locally and immediately; no host lookup or 5-second wait happens.
+- **A-11:** If the host's saved room is missing or unreadable after a host refresh, the app shows the home screen (create and join forms) with no error, and the room is gone.
+- **A-12:** If the realtime connection cannot be established, the guest sees the same message as AC-7 after 5 seconds.

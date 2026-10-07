@@ -1,92 +1,71 @@
-# Development Plan: <User Story ID> — <Short Title>
+# Dev Spec: <US-ID> — <Short Title>
 
+**Story:** `docs/requirements/<US-ID>-<slug>.md`  
 **Date:** YYYY-MM-DD  
-**Author:** <name>  
-**Status:** Draft | In Review | Approved
+**Status:** Draft | In Review | Approved  
+**Decisions referenced:** D-xxx, D-xxx
 
 ---
 
-## 1. Background & Context
+## 1. Approach
 
-Brief explanation of why this work exists, what problem it solves, and any relevant business or technical context the engineer needs before diving in.
+Short summary of the solution. Cite decisions by ID ("per D-004") instead of re-explaining them. State which layers are affected.
 
----
+## 2. Data shapes
 
-## 2. Design Decisions
+TypeScript types and message/event definitions this story needs. Name every event. Signatures only, no implementations.
 
-Key decisions made during clarification (from the design tree process):
+## 3. Pure logic
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| e.g. API approach | REST endpoint | Aligns with existing patterns |
+For each pure function: signature, rules, order of checks, exact user-facing messages from the story.
 
----
+## 4. Flows
 
-## 3. Architecture / Approach
+Numbered steps for each flow in the story (happy path, refresh/restore, timeouts, rejections).
 
-High-level description of the solution approach. Include:
-- Which layers are affected (UI, API, DB, etc.)
-- Any new dependencies or third-party integrations
-- Data flow or sequence if non-trivial (link to diagram if available)
+## 5. Files to create or change
 
----
+Ordered by dependency. Each row is one bite-sized task.
 
-## 4. Task Breakdown
+| Order | Path | Purpose | AC served | Tests |
+|---|---|---|---|---|
+| 1 | `src/...` | one line | AC-x | unit: scenarios |
 
-Each task should be independently completable. Order them by dependency.
+Keep logic in plain functions, separate from UI.
 
-### Task 1: <Title>
-**Files to change:**
-- `src/path/to/file.ts` — describe what changes
+## 6. UI elements and data-testid
 
-**What to do:**
-- Step-by-step description (no code unless essential)
+Binding names for page objects and tests.
 
-**Tests to write/update:**
-- Unit: describe scenarios
-- Integration: describe scenarios
+| Element | Type | data-testid | Notes |
+|---|---|---|---|
+| e.g. display name input | input | `display-name-input` | |
 
----
+## 7. Edge cases and error states
 
-### Task 2: <Title>
-...
+| Case | What the user sees | State change |
+|---|---|---|
 
----
+## 8. Unit test plan
 
-## 5. Files & References
+| Function / unit | Scenarios | AC verified |
+|---|---|---|
 
-Existing files the engineer should read before starting:
+## 9. Traceability
 
-| File | Why it's relevant |
-|------|--------------------|
-| `src/services/foo.ts` | Contains the pattern to follow |
-| `docs/api-conventions.md` | API naming rules |
+Every AC of the story, none missing.
 
----
+| AC | Spec section | Files |
+|---|---|---|
 
-## 6. Risks & Unknowns
+## 10. Infrastructure needs
 
-| Risk | Likelihood | Mitigation |
-|------|------------|------------|
-| e.g. Third-party API rate limits | Medium | Add retry logic |
+Short bullets: what this story needs from the environment (realtime channel use, browser storage, environment variables). Names and purposes only. Accounts, deployment and tooling belong to the architecture step.
+
+## 11. Open questions
+
+Anything the story does not settle, and any recommended answer you assumed. Write "None" if empty. Do not decide silently.
 
 ---
 
-## 7. How to Test Locally
-
-Step-by-step instructions to verify the feature works end-to-end in a local environment.
-
-1. Run `<command>`
-2. Navigate to `<url>`
-3. Expect `<outcome>`
-
----
-
-## 8. Definition of Done
-
-- [ ] All acceptance criteria met
-- [ ] Unit and integration tests written and passing
-- [ ] No linting / type errors
-- [ ] PR description links to this plan
-- [ ] Reviewed and approved by at least one peer
-- [ ] Documentation updated (if applicable)
+Definition of Done: as in `.github/copilot-instructions.md`.
