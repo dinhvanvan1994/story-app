@@ -73,7 +73,7 @@
 **Then** both inputs are accepted, and the participant list shows “Nguyễn Văn” in each case.
 
 ### AC-12 — Display name with invalid characters is rejected
-**Given** a guest enters the display name `<script>alert(1)</script>` for room `A7K9Q2`  
+**Given** a guest enters the 18-character display name `<script>x</script>` for room `A7K9Q2`  
 **When** the guest attempts to join  
 **Then** the guest is not added to the participant list and sees exactly: “Display name contains invalid characters.”
 
