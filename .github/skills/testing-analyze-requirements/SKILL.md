@@ -48,10 +48,10 @@ Analyze software requirements to identify gaps, ambiguities, conflicts, assumpti
 
 | Output | Format | Naming Convention |
 | ------ | ------ | ----------------- |
-| Requirement Analysis Report | Markdown (`.md`) | `Report-Requirements-Analysis-<Requirement-ID-or-Name>.md` |
-| Requirements Findings Log | Markdown (`.md`) | `Findings-Requirements-Analysis-<Requirement-ID-or-Name>.md` |
+| Requirement Analysis Report | Markdown (`.md`) | `US-{id}-requirements-analysis.md` |
+| Requirements Findings Log | Markdown (`.md`) | `US-{id}-requirements-findings.md` |
 
-Output location: `reports/`
+Output location: `docs/test-strategy/` (for example `docs/test-strategy/US-001-requirements-analysis.md`).
 
 ---
 

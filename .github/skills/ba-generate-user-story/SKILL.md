@@ -48,21 +48,20 @@ Use this skill to turn raw product or business input into a clear, testable Agil
 ## Output Modes
 
 - Inline story: Use when the user asks for a draft, rewrite, or review in chat.
-- Saved artifact: Use only when the user asks to create files or the local workflow requires it. Default location: `working-artifacts/user-stories/<topic-or-task-name>/` at the workspace root (per the BA Agent's Artifact Output Location rule), unless the workspace follows the NashTech AI SDLC folder conventions below or the user requests a different location.
+- Saved artifact: Use only when the user asks to create files or the local workflow requires it. Location: `docs/requirements/US-{id}-{slug}.md` (for example `docs/requirements/US-001-create-and-join-room.md`), one file per story, unless the user requests a different location.
 - Tool-specific format: Adapt fields for Azure DevOps, Jira, Confluence, or CSV only when requested.
 
 For a complete story structure, read `references/story-output-contract.md`.
 
-## Saving In A Workspace With BA Conventions
+## Saving In This Repository
 
-When saving a draft in a workspace that follows the NashTech AI SDLC folder conventions, use `.workspace/specs/...` instead of the default `working-artifacts/user-stories/` location:
+Save to `docs/requirements/` only. Do not use `.workspace/` or `working-artifacts/`.
 
-1. Scan `.workspace/specs/user-stories/drafts/` and `.workspace/specs/user-stories/published/` for existing sequence numbers.
-2. Use the next 5-digit sequence number and a short kebab-case description.
-3. Create `.workspace/specs/user-stories/drafts/<00000-short-name>/<00000-short-name>.md`.
-4. Use the local user story template if present.
-5. Add a references table listing consulted workspace files.
-6. Do not publish the story unless the user explicitly asks and the project workflow allows it.
+1. List `docs/requirements/` for existing `US-` numbers and use the next 3-digit number (`US-001`, `US-002`, ...) with a short kebab-case slug.
+2. Create `docs/requirements/US-{id}-{slug}.md`.
+3. Use the local user story template if present.
+4. Add a references table listing consulted workspace files.
+5. Create no other file.
 
 ## Final Response
 

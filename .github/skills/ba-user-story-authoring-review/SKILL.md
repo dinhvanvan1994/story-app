@@ -34,7 +34,7 @@ Always include the following when producing an artifact:
 - Quality checks: ambiguity, missing rules, edge cases, NFR/security/privacy/data/test impact, and delivery risk.
 - Open questions: grouped by stakeholder or decision area, prioritized by impact.
 - Assumptions: clearly marked and ready for client validation.
-- Saved artifact location: when asked to save this as a file, write it under `working-artifacts/user-stories/<topic-or-task-name>/` at the workspace root (per the BA Agent's Artifact Output Location rule) unless the user requests a different location.
+- Saved artifact location: when asked to save this as a file, write it to `docs/requirements/US-{id}-{slug}.md` (update the existing story file in place when reviewing an existing story) unless the user requests a different location.
 
 ## Resource Use
 

@@ -48,10 +48,9 @@ Generate complete, maintainable, traceable, and risk-based test cases from softw
 
 | Output | Format | Naming Convention |
 | ------ | ------ | ----------------- |
-| Test Case Document | Markdown (`.md`) | `TC-<US-ID>-<User-Story-Name>.md` |
-| Fallback Test Case Document (no US ID) | Markdown (`.md`) | `TC-FEATURE-<Feature-Name>.md` |
+| Test Case Document | Markdown (`.md`) | `US-{id}-test-cases.md` |
 
-Output location: `test-cases/`
+Output location: `docs/test-cases/` (for example `docs/test-cases/US-001-test-cases.md`). One file per user story; every test case traces to an acceptance criterion ID.
 
 ---
 
@@ -143,7 +142,7 @@ Revise output if any applicable check fails.
 ## 13. Success Criteria
 <!-- Measurable outcomes -->
 
-- [ ] Test case document is created in `test-cases/` with correct naming convention.
+- [ ] Test case document is created in `docs/test-cases/` as `US-{id}-test-cases.md`.
 - [ ] Test cases are traceable to requirements and cover applicable positive, negative, boundary, and business-rule scenarios.
 - [ ] Duplicate scenarios are removed and expected results are clear, verifiable, and measurable.
 

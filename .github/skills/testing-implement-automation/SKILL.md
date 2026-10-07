@@ -48,10 +48,10 @@ Implement maintainable Playwright automation scripts from approved test cases wh
 
 | Output | Format | Naming Convention |
 | ------ | ------ | ----------------- |
-| UI Automation Spec | TypeScript (`.spec.ts`) | `<Requirement-or-Feature>-<Flow>.spec.ts` |
-| API Automation Spec (if applicable) | TypeScript (`.spec.ts`) | `<Requirement-or-Feature>-api.spec.ts` |
+| UI Automation Spec | TypeScript (`.spec.ts`) | `US-{id}-<feature-slug>.spec.ts` |
+| API Automation Spec (if applicable) | TypeScript (`.spec.ts`) | `US-{id}-<feature-slug>-api.spec.ts` |
 
-Output location: `tests/`
+Output location: `tests/e2e/` for specs (for example `tests/e2e/US-001-create-and-join-room.spec.ts`). Page objects come from `tests/page-objects/`; do not create them here.
 
 ---
 

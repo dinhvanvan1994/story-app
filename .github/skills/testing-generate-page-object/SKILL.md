@@ -51,7 +51,7 @@ Generate and maintain reusable Playwright page objects and UI components that fo
 | Page Object Class | TypeScript (`.ts`) | `<FeatureOrPage>NamePage.ts` |
 | Reusable Component Class | TypeScript (`.ts`) | `<ComponentName>.ts` |
 
-Output locations: `src/pages/`, `src/components/`
+Output location: `tests/page-objects/` (for example `tests/page-objects/RoomPage.ts`). Never write page objects under `src/`. Use the `data-testid` names from the dev spec (`docs/specs/US-{id}-dev-spec.md`, UI elements section).
 
 ---
 
