@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { validateDisplayName } from "../../domain/displayName";
+import { isJoinConfirmedBy } from "../../domain/joinConfirmation";
 import { normalizeRoomCode, validateRoomCode } from "../../domain/roomCode";
 import { shouldApplyView } from "../../domain/roomReducer";
 import { openRoomChannel, type RoomChannel } from "../../realtime/roomChannel";
@@ -218,7 +219,7 @@ export function useGuestRoomSession(
     let channel: RoomChannel;
     channel = openRoomChannel(attempt.roomCode, {
       onIntent: () => {},
-      onState: ({ requestId, view }) => {
+      onState: ({ view }) => {
         if (
           channelRef.current !== channel ||
           attemptRef.current !== attempt
@@ -227,7 +228,7 @@ export function useGuestRoomSession(
         }
 
         if (!confirmedRef.current) {
-          if (requestId !== attempt.intent.requestId) {
+          if (!isJoinConfirmedBy(view, attempt.intent.participantId)) {
             return;
           }
           const ownParticipant = view.participants.find(

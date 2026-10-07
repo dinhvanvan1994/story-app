@@ -68,6 +68,7 @@
 | TC-001-46 | Guest can join immediately after the host's room appears | AC-1, AC-2 | E2E | P1 | Browsers A and B are on the home screen; B has “Noah Patel” typed in `guest-display-name`. | 1. In A create a room as “Maya Chen”; wait for `room-view` (up to 10,000 ms).<br>2. As soon as `room-code-value` is readable, fill B's `room-code` with it and click `join-room` with no extra waiting.<br>3. Check B's `join-error` and both lists. | “Maya Chen”; “Noah Patel” | B joins on the first attempt with no timeout error; both lists contain “Maya Chen” and “Noah Patel”. (Story A-13.) |
 | TC-001-47 | Malformed message payloads are ignored | AC-2, AC-3 | Unit | P1 | None. | 1. Check valid intent, state, and rejection payloads.<br>2. Check malformed payloads including missing `intent`, intent type other than `join`, non-string `displayName`, malformed participant, `revision` 0 and 1.5, and an unknown rejection code. | Valid payloads; missing intent; intent type `vote`; numeric `displayName`; malformed participant; revisions 0 and 1.5; unknown rejection code | Valid payloads pass their guards; every malformed payload is rejected by its guard. |
 | TC-001-48 | Unreadable session storage reads as null | AC-15, AC-16 | Unit | P1 | In-memory fake `Storage`. | 1. Check missing keys, invalid JSON, and wrong-shaped values for both reads.<br>2. Write participant and host Room values and read them back.<br>3. Clear the room session. | Missing keys; invalid JSON; wrong shape; valid participant and Room | Missing or unreadable values return `null`; written values read back equal; `clearRoomSession` removes both keys. |
+| TC-001-49 | A newer public view confirms a pending join | AC-3 | Unit | P1 | A Public view for the room with participant entries. | 1. Call `isJoinConfirmedBy(view, "guest-1")` when the view contains `guest-1`.<br>2. Call it with a participant ID absent from the view. | View revision 3 contains `guest-1`; absent ID `guest-2` | The matching participant confirms the join regardless of request ordering; the absent participant does not confirm it. |
 
 ## Traceability
 
@@ -75,7 +76,7 @@
 |---|---|
 | AC-1 | TC-001-01, TC-001-02, TC-001-03, TC-001-10, TC-001-46 |
 | AC-2 | TC-001-04, TC-001-05, TC-001-43, TC-001-46, TC-001-47 |
-| AC-3 | TC-001-06, TC-001-43, TC-001-44, TC-001-47 |
+| AC-3 | TC-001-06, TC-001-43, TC-001-44, TC-001-47, TC-001-49 |
 | AC-4 | TC-001-07, TC-001-08 |
 | AC-5 | TC-001-09, TC-001-10, TC-001-11, TC-001-27 |
 | AC-6 | TC-001-12, TC-001-13, TC-001-14, TC-001-32 |
@@ -95,7 +96,7 @@
 
 Story assumptions: A-11 is covered by TC-001-37 and TC-001-38; A-12 by TC-001-16; A-13 by TC-001-45 and TC-001-46.
 
-All 19 acceptance criteria are covered; none are missing. **Count:** 24 Unit cases, 24 E2E cases (48 total).
+All 19 acceptance criteria are covered; none are missing. **Count:** 25 Unit cases, 24 E2E cases (49 total).
 
 ## Assumptions
 
